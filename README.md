@@ -51,6 +51,7 @@ FILES & CLIP     clip get|set|clear               url clean <url>...
                  dmg install <file.dmg>           snip list|add|expand|remove
                  clean scan|run [--older-than N]  cache cleaner → Trash
 CAPTURE          shot [--area|--window|--clipboard|--delay N] out.png
+                 record [out.mov|out.mp4] [--duration N] [--display ID]
                  ocr --image|--screen|--clipboard color at <x> <y>|convert <c>
                  media info|convert|gif|compress  sips / ffmpeg tools
 AGENTS           agents                           Claude/Codex/OpenCode tokens
@@ -78,6 +79,7 @@ vorssaint ocr --screen --plain | pbcopy
 vorssaint trash empty --dry-run && vorssaint trash empty --yes
 vorssaint awake --for 3600 &
 vorssaint shot --area /tmp/shot.png
+vorssaint record /tmp/demo.mov --duration 10   # ScreenCaptureKit, primary display
 vorssaint snip add today "{{date}} standup:" && vorssaint snip expand today --copy
 vorssaint brew outdated --json | jq '.formulae | length'
 vorssaint window snap left --app Safari   # presets: halves corners thirds fill center cycle; --index/--display
@@ -93,8 +95,7 @@ drag/drop UI (Shelf, Dynamic Island, radial menu), and menu-bar surfaces can't
 be a stateless CLI. The full classification — all 60+ app features mapped to
 cli / tui / gui / daemon — lives in [docs/FEATURES.md](docs/FEATURES.md).
 
-Planned next: `record` (screen recording), `downloads` organizer, clipboard
-history, `clip image`, per-app volume routing. Track status via
+Planned next: `downloads` organizer, clipboard history, per-app volume routing. Track status via
 `vorssaint features`.
 
 ## Permissions
