@@ -23,7 +23,7 @@ private enum DS {
 struct Display: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Displays and brightness",
-        subcommands: [List.self, Brightness.self],
+        subcommands: [List.self, Brightness.self, Boost.self, DDC.self],
         defaultSubcommand: List.self
     )
 
@@ -108,10 +108,115 @@ struct Display: ParsableCommand {
                 guard let d = Brightness.resolve(display) else { Out.fail("not_found", "no matching display", exit: .notFound) }
                 guard let set = DS.set else { Out.fail("unsupported", "DisplayServices unavailable") }
                 guard set(d.id, Float(percent) / 100) == 0 else {
-                    Out.fail("unsupported", "brightness not settable on \(d.name) (external monitors need DDC — planned)")
+                    Out.fail("unsupported", "brightness not settable on \(d.name) (external monitors need `vorssaint display ddc`)")
                 }
                 struct R: Encodable { var display: String, percent: Int }
                 Out.emit(R(display: d.name, percent: percent)) { "\(d.name) → \(percent)%" }
+            }
+        }
+    }
+
+    struct Boost: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "XDR extra brightness above the normal maximum",
+            discussion: """
+            Drives the private DisplayServices brightness setter above 1.0. Only
+            XDR-capable built-in panels accept it; every other display reads back
+            1.0 and the command fails with a clear error instead of pretending.
+            The boost is reset by sleep, display changes, or --reset.
+
+              vorssaint display boost                 # 1.2×
+              vorssaint display boost --amount 1.5
+              vorssaint display boost --reset
+            """
+        )
+        @OptionGroup var g: GlobalOptions
+        @Option(name: .long, help: "Boost multiplier 1.0–1.6") var amount: Double = 1.2
+        @Option(help: "Display id or name; default builtin") var display: String?
+        @Flag(name: .long, help: "Return to normal brightness (1.0)") var reset = false
+
+        func run() throws {
+            wireOutput(g, command: "vorssaint display boost")
+            guard (1.0...1.6).contains(amount) else { throw ValidationError("--amount must be 1.0–1.6") }
+            guard let d = Brightness.resolve(display) else { Out.fail("not_found", "no matching display", exit: .notFound) }
+            guard let set = DS.set, let get = DS.get else {
+                Out.fail("unsupported", "DisplayServices unavailable", exit: .notImplemented)
+            }
+            let target = Float(reset ? 1.0 : amount)
+            guard set(d.id, target) == 0 else {
+                Out.fail("unsupported", "\(d.name) rejected the brightness write", exit: .notImplemented)
+            }
+            var readBack = Float(0)
+            guard get(d.id, &readBack) == 0 else {
+                Out.fail("unsupported", "brightness not readable on \(d.name)", exit: .notImplemented)
+            }
+            if !reset, readBack <= 1.01 {
+                Out.fail("unsupported",
+                         "\(d.name) did not accept XDR boost (read back \(String(format: "%.2f", readBack))×) — only XDR-capable built-in displays support values above 1.0",
+                         exit: .notImplemented)
+            }
+            struct R: Encodable { var display: String, multiplier: Double }
+            let r = R(display: d.name, multiplier: Double(readBack))
+            Out.emit(r) {
+                reset ? "\(d.name) → normal brightness"
+                      : String(format: "%@ → %.2f× extra brightness", d.name, r.multiplier)
+            }
+        }
+    }
+
+    struct DDC: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            commandName: "ddc",
+            abstract: "External-monitor brightness over DDC/CI",
+            discussion: """
+            DDC/CI needs a helper: `brew install ddcctl` (Intel) or
+            `brew install m1ddc` (Apple Silicon). Native IOAVService control is
+            private and unverified, so this command uses whichever helper exists.
+
+              vorssaint display ddc             # helper + external display status
+              vorssaint display ddc 40 --index 1
+            """
+        )
+        @OptionGroup var g: GlobalOptions
+        @Argument(help: "Brightness 0–100") var percent: Int?
+        @Option(name: .long, help: "DDC display index passed to the helper") var index: Int = 1
+
+        func run() throws {
+            wireOutput(g, command: "vorssaint display ddc")
+            let ddcctl = Shell.which("ddcctl")
+            let m1ddc = Shell.which("m1ddc")
+            guard let percent else {
+                let externals = Display.displays().filter { !$0.builtin }
+                struct R: Encodable { var ddcctl: String?, m1ddc: String?, externalDisplays: [Display.Info] }
+                let r = R(ddcctl: ddcctl, m1ddc: m1ddc, externalDisplays: externals)
+                if Out.json { Out.emit(r) { "" } }
+                else {
+                    print("ddcctl: \(ddcctl ?? "not installed")")
+                    print("m1ddc:  \(m1ddc ?? "not installed")")
+                    for d in externals { print("external: \(d.name) (id \(d.id))") }
+                }
+                return
+            }
+            guard (0...100).contains(percent) else { throw ValidationError("percent must be 0–100") }
+            guard ddcctl != nil || m1ddc != nil else {
+                Out.fail("not_implemented",
+                         "DDC/CI needs `brew install ddcctl` (Intel) or `brew install m1ddc` (Apple Silicon); native IOAVService control is private and unverified",
+                         exit: .notImplemented)
+            }
+            let r: ShellResult
+            if let ddcctl {
+                r = Shell.run(ddcctl, ["-d", String(index), "-b", String(percent)])
+            } else {
+                r = Shell.run(m1ddc!, ["display", String(index), "set", "brightness", String(percent)])
+            }
+            guard r.status == 0 else {
+                let msg = r.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+                Out.fail("ddc_failed", msg.isEmpty ? "DDC helper exited with status \(r.status)" : msg)
+            }
+            struct R: Encodable { var displayIndex: Int, percent: Int, tool: String }
+            let tool = ddcctl != nil ? "ddcctl" : "m1ddc"
+            Out.emit(R(displayIndex: index, percent: percent, tool: tool)) {
+                "display \(index) brightness → \(percent)% (DDC/CI via \(tool))"
             }
         }
     }

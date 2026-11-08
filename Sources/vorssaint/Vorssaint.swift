@@ -21,7 +21,7 @@ struct Vorssaint: ParsableCommand {
         """,
         version: "0.1.0",
         subcommands: [
-            Monitor.self, Top.self,
+            Monitor.self, Top.self, Fans.self,
             Volume.self, Mic.self,
             Apps.self, Ports.self, WindowCmd.self, Switch.self,
             Brew.self,
@@ -32,7 +32,7 @@ struct Vorssaint: ParsableCommand {
             Display.self, Appearance.self, DesktopIcons.self, Spaces.self,
             MouseCmd.self, Bluetooth.self,
             Lock.self, Trash.self, Eject.self,
-            Shot.self, Record.self, Ocr.self, ColorCmd.self,
+            Shot.self, Record.self, Camera.self, Ocr.self, ColorCmd.self,
             Media.self, Clean.self,
             Net.self, Speedtest.self,
             Snip.self, Agents.self,

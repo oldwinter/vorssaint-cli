@@ -2,6 +2,7 @@
 import AppKit
 import ApplicationServices
 import ArgumentParser
+import AVFoundation
 import CoreGraphics
 import Foundation
 
@@ -58,6 +59,20 @@ struct Doctor: ParsableCommand {
 
         let fans = SMC.fans()
         checks.append(fans.isEmpty ? .warn("smc", "no SMC fans readable") : .ok("smc", "\(fans.count) fan(s) readable"))
+
+        let cameras = AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.builtInWideAngleCamera, .external],
+            mediaType: .video, position: .unspecified).devices
+        let camAuth = AVCaptureDevice.authorizationStatus(for: .video)
+        if cameras.isEmpty {
+            checks.append(.missing("camera", "no camera attached"))
+        } else if camAuth == .authorized {
+            checks.append(.ok("camera", "permission granted — \(cameras.count) camera(s)"))
+        } else if camAuth == .notDetermined {
+            checks.append(.warn("camera", "\(cameras.count) camera(s); permission not requested yet — `camera shot` will prompt"))
+        } else {
+            checks.append(.warn("camera", "not granted — `camera shot` will fail; grant in System Settings → Privacy & Security → Camera"))
+        }
 
         let fails = checks.filter { $0.status == "warn" }.count
 

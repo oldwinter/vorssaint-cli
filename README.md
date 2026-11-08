@@ -39,8 +39,10 @@ Exit codes: `0` ok · `1` runtime · `2` usage · `3` not implemented · `4` per
 
 ```
 MONITOR          monitor cpu|mem|disk|net|battery|sensors [--watch]
+                 fans list|set <rpm>|auto          SMC fan readout & manual target
                  top                              live TUI dashboard (q quits)
 AUDIO            volume get|set|mute|unmute|devices|output
+                 volume route [--app A] [--device D]  per-app output routing
                  mic get|set|mute|unmute
 APPS & PORTS     apps list|quit|quit-all|quit-others|open|uninstall
                  switch                           TUI app switcher (↑↓ Enter q)
@@ -55,11 +57,12 @@ FILES & CLIP     clip get|set|clear               images: get --image / set --im
                  clean scan|run [--older-than N]  cache cleaner → Trash
 CAPTURE          shot [--area|--window|--clipboard|--delay N] out.png
                  record [out.mov|out.mp4] [--duration N] [--display ID]
+                 camera list|shot [out.png] [--device ID]   AVCapture single frame
                  ocr --image|--screen|--clipboard color at <x> <y>|convert <c>
                  media info|convert|gif|compress  sips / ffmpeg tools
 AGENTS           agents                           Claude/Codex/OpenCode tokens
 SYSTEM           awake [--for S|--while PID|--display]
-                 display list|brightness [set N]
+                 display list|brightness [set N]|boost|ddc
                  appearance dark|light|toggle     desktop-icons hide|show
                  spaces lock-order|unlock-order   mouse acceleration on|off
                  bluetooth on|off|status          lock
@@ -83,6 +86,10 @@ vorssaint trash empty --dry-run && vorssaint trash empty --yes
 vorssaint awake --for 3600 &
 vorssaint shot --area /tmp/shot.png
 vorssaint record /tmp/demo.mov --duration 10   # ScreenCaptureKit, primary display
+vorssaint volume route --app Safari --device "MacBook Speakers"
+vorssaint display boost --amount 1.4           # XDR built-in panels only
+vorssaint fans set 3000 --fan 0 --yes          # verified SMC write, clamped
+vorssaint camera shot /tmp/me.png              # single AVCapture frame
 vorssaint snip add today "{{date}} standup:" && vorssaint snip expand today --copy
 vorssaint note "ship the release notes"        # appends to today's note
 vorssaint downloads organize --dry-run         # preview, then --yes to apply
@@ -101,14 +108,15 @@ drag/drop UI (Shelf, Dynamic Island, radial menu), and menu-bar surfaces can't
 be a stateless CLI. The full classification — all 60+ app features mapped to
 cli / tui / gui / daemon — lives in [docs/FEATURES.md](docs/FEATURES.md).
 
-Planned next: clipboard history, per-app volume routing. Track status via
-`vorssaint features`.
+Planned next: clipboard history, native DDC control without a helper. Track
+status via `vorssaint features`.
 
 ## Permissions
 
-`vorssaint doctor` checks: Screen Recording (shot/ocr/color/window titles),
-Accessibility (future window layout), Full Disk Access (future cleaner),
-Automation (appearance). Optional tools: brew, blueutil, ffmpeg, mas.
+`vorssaint doctor` checks: Screen Recording (shot/record/ocr/color/window
+titles), Accessibility (future window layout), Full Disk Access (future
+cleaner), Automation (appearance), Camera (camera shot), SMC (fans). Optional
+tools: brew, blueutil, ffmpeg, mas, ddcctl/m1ddc.
 
 ## License
 
