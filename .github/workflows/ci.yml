@@ -47,6 +47,30 @@ jobs:
           test "$cleaned" = "https://example.com/?q=1"
           echo "url clean roundtrip: $cleaned"
 
+      - name: Installer, formula & completion scripts
+        run: |
+          set -euo pipefail
+          sh -n install.sh
+          bash -n scripts/release-formula.sh
+          ruby -c Formula/vorssaint.rb
+
+          # Exercise install.sh end-to-end against a simulated release.
+          TAG="v0.0.0-ci"
+          REL="$RUNNER_TEMP/release"
+          PKG="$RUNNER_TEMP/pkg"
+          PREFIX="$RUNNER_TEMP/prefix"
+          mkdir -p "$REL" "$PKG"
+          cp "$(swift build -c release --show-bin-path)/vorssaint" "$PKG/vorssaint"
+          tar -czf "$REL/vorssaint-${TAG}-macos-universal.tar.gz" -C "$PKG" vorssaint
+          (cd "$REL" && shasum -a 256 "vorssaint-${TAG}-macos-universal.tar.gz" \
+            > "vorssaint-${TAG}-macos-universal.tar.gz.sha256")
+          VORSSAINT_RELEASE_BASE_URL="file://$REL" \
+            VORSSAINT_VERSION="$TAG" \
+            VORSSAINT_INSTALL_DIR="$PREFIX" \
+            ./install.sh
+          "$PREFIX/vorssaint" --version
+          "$PREFIX/vorssaint" --selftest
+
       - name: Completion scripts
         run: |
           set -euo pipefail

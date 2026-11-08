@@ -16,13 +16,63 @@ bar app, behind one `vorssaint` command with a strict agent contract.
 
 ## Install
 
+### install.sh
+
 ```sh
-git clone <repo> && cd vorssaint-cli
-swift build -c release
-cp .build/release/vorssaint /opt/homebrew/bin/
+curl -fsSL https://raw.githubusercontent.com/oldwinter/vorssaint-cli/master/install.sh | sh
 ```
 
-Requires macOS 14+, Apple Silicon or Intel, Swift toolchain (CLT is enough).
+Fetches the latest release, verifies its sha256 and architecture, clears the
+quarantine attribute, and installs to `/usr/local/bin` when writable, otherwise
+`~/.local/bin`. Pin a version with `--version vX.Y.Z`, choose a directory with
+`--prefix DIR`, or set `VORSSAINT_VERSION` / `VORSSAINT_INSTALL_DIR`.
+
+### Homebrew
+
+The formula lives in [`Formula/vorssaint.rb`](Formula/vorssaint.rb) and is
+published to [`oldwinter/homebrew-tap`](https://github.com/oldwinter/homebrew-tap).
+Until the first tagged release it builds from source:
+
+```sh
+brew install --HEAD oldwinter/tap/vorssaint
+```
+
+After the first release it installs the release binary:
+
+```sh
+brew install oldwinter/tap/vorssaint
+```
+
+Releases regenerate the stable formula with
+`scripts/release-formula.sh vX.Y.Z` (`TAP_DIR=../homebrew-tap` also copies it
+into a tap checkout).
+
+### From source
+
+```sh
+git clone https://github.com/oldwinter/vorssaint-cli.git && cd vorssaint-cli
+swift build -c release
+install -m 0755 "$(swift build -c release --show-bin-path)/vorssaint" ~/.local/bin/
+```
+
+Requires macOS 14+, Apple Silicon or Intel, Swift 6 toolchain (Xcode 16+; CLT is enough).
+
+### Shell completions
+
+`swift-argument-parser` generates completions for zsh, bash and fish:
+
+```sh
+# zsh — must land in a directory from $fpath
+vorssaint --generate-completion-script zsh > "${fpath[1]}/_vorssaint"
+
+# bash
+vorssaint --generate-completion-script bash > ~/.local/share/bash-completion/completions/vorssaint
+
+# fish
+vorssaint --generate-completion-script fish > ~/.config/fish/completions/vorssaint.fish
+```
+
+CI regenerates all three on every build so a broken command tree cannot slip in.
 
 ## The contract (for agents)
 
