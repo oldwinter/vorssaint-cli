@@ -10,7 +10,7 @@ struct AppInfo: Encodable {
 struct Apps: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "List, quit and open apps",
-        subcommands: [List.self, Quit.self, QuitAll.self, QuitOthers.self, Open.self],
+        subcommands: [List.self, Quit.self, QuitAll.self, QuitOthers.self, Open.self, Uninstall.self],
         defaultSubcommand: List.self,
         aliases: ["app"]
     )
@@ -133,6 +133,103 @@ struct Apps: ParsableCommand {
                 Out.emit(OpenResult(opened: path)) { "opened \(app)" }
             } else {
                 Out.fail("not_found", "no app named '\(app)' in /Applications or running", exit: .notFound)
+            }
+        }
+    }
+
+    struct Related: Encodable { var path: String, kind: String, bytes: Int64 }
+
+    static func relatedFiles(appName: String, bundleID: String?) -> [Related] {
+        let fm = FileManager.default
+        let home = fm.homeDirectoryForCurrentUser.path
+        var candidates: [(String, String)] = []
+        let names = [appName, bundleID].compactMap { $0 }.filter { !$0.isEmpty }
+        let dirs = [
+            "Library/Application Support", "Library/Caches", "Library/Logs",
+            "Library/HTTPStorages", "Library/WebKit", "Library/Containers",
+            "Library/Group Containers", "Library/Saved Application State",
+            "Library/Preferences", "Library/LaunchAgents",
+        ]
+        for dir in dirs {
+            let base = home + "/" + dir
+            guard let entries = try? fm.contentsOfDirectory(atPath: base) else { continue }
+            for e in entries {
+                let el = e.lowercased()
+                for n in names where el.contains(n.lowercased()) {
+                    candidates.append((base + "/" + e, dir.replacingOccurrences(of: "Library/", with: "")))
+                    break
+                }
+            }
+        }
+        // dedupe, size up
+        var seen = Set<String>()
+        return candidates.filter { seen.insert($0.0).inserted }.map { path, kind in
+            var bytes: Int64 = (try? fm.allocatedSizeOfDirectory(at: URL(fileURLWithPath: path))) ?? 0
+            if bytes == 0, let a = try? fm.attributesOfItem(atPath: path) { bytes = (a[.size] as? Int64) ?? 0 }
+            return Related(path: path, kind: kind, bytes: bytes)
+        }.sorted { $0.bytes > $1.bytes }
+    }
+
+    struct Uninstall: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Uninstall an app and show related files (moves to Trash)",
+            discussion: "Finds the .app plus caches, preferences, containers and support dirs matching the app name/bundle id, then moves everything to the Trash."
+        )
+        @OptionGroup var g: GlobalOptions
+        @Argument(help: "App name") var app: String
+        @Flag(name: .long, help: "Only remove the .app, keep user data") var appOnly = false
+        @Flag(name: .long) var dryRun = false
+        @Flag(name: .long) var yes = false
+        func run() throws {
+            wireOutput(g, command: "vorssaint apps uninstall")
+            // resolve the .app bundle
+            let fm = FileManager.default
+            var appPath: String?
+            var bundleID: String?
+            for dir in ["/Applications", "\(NSHomeDirectory())/Applications", "/System/Applications"] {
+                guard let entries = try? fm.contentsOfDirectory(atPath: dir) else { continue }
+                if let hit = entries.first(where: {
+                    $0.hasSuffix(".app") && $0.dropLast(4).lowercased() == app.lowercased()
+                }) ?? entries.first(where: {
+                    $0.hasSuffix(".app") && $0.lowercased().contains(app.lowercased())
+                }) {
+                    appPath = dir + "/" + hit
+                    bundleID = Bundle(path: appPath!)?.bundleIdentifier
+                    break
+                }
+            }
+            guard let appPath else { Out.fail("not_found", "no .app matching '\(app)'", exit: .notFound) }
+            let displayName = URL(fileURLWithPath: appPath).deletingPathExtension().lastPathComponent
+
+            var targets: [Related] = []
+            let appSize = (try? fm.allocatedSizeOfDirectory(at: URL(fileURLWithPath: appPath))) ?? 0
+            targets.append(Related(path: appPath, kind: "app", bytes: appSize))
+            if !appOnly { targets += Apps.relatedFiles(appName: displayName, bundleID: bundleID) }
+
+            if Out.json && !dryRun {
+                Out.emit(targets) { "" }
+            } else {
+                print(ANSI.bold("\(displayName)") + (bundleID.map { ANSI.dim("  \($0)") } ?? ""))
+                Out.table(["SIZE", "KIND", "PATH"], rows: targets.map { [fmtBytes(UInt64($0.bytes)), $0.kind, $0.path] })
+            }
+            if dryRun {
+                struct R: Encodable { var wouldTrash: Int, bytes: Int64 }
+                Out.emit(R(wouldTrash: targets.count, bytes: targets.reduce(0) { $0 + $1.bytes })) {
+                    "--dry-run: nothing moved"
+                }
+                return
+            }
+            Out.confirm("Move \(targets.count) items (\(fmtBytes(UInt64(targets.reduce(0) { $0 + $1.bytes })))) to Trash?", yes: yes)
+            // quit the app first if running
+            if let running = Apps.match(displayName) { _ = running.terminate() }
+            var trashed = 0, failed: [String] = []
+            for t in targets {
+                do { try fm.trashItem(at: URL(fileURLWithPath: t.path), resultingItemURL: nil); trashed += 1 }
+                catch { failed.append(t.path) }
+            }
+            struct R: Encodable { var trashed: Int, failed: [String] }
+            Out.emit(R(trashed: trashed, failed: failed)) {
+                "trashed \(trashed) items" + (failed.isEmpty ? "" : " — failed: \(failed.joined(separator: ", "))")
             }
         }
     }

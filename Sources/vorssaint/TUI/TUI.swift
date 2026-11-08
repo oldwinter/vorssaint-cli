@@ -8,8 +8,23 @@ import Foundation
 enum TUI {
     nonisolated(unsafe) private static var original = termios()
 
+    enum Key: Equatable {
+        case up, down, left, right, enter, quit, char(Character)
+    }
+
     static func run(refresh: TimeInterval = 1.0, _ render: @escaping () -> String) {
-        guard stdoutIsTTY else { print(render()); return }
+        runInteractive(refresh: refresh, render: render) { key in
+            key == .quit ? false : true
+        }
+    }
+
+    /// Interactive loop: renders, dispatches keys. onKey returns false to exit.
+    /// Returns the last key received when exit was caused by .enter (for switchers).
+    @discardableResult
+    static func runInteractive(refresh: TimeInterval = 1.0,
+                               render: @escaping () -> String,
+                               onKey: @escaping (Key) -> Bool) -> Key? {
+        guard stdoutIsTTY else { print(render()); return nil }
 
         var raw = termios()
         tcgetattr(STDIN_FILENO, &original)
@@ -23,6 +38,7 @@ enum TUI {
         fflush(stdout)
 
         signal(SIGINT, SIG_IGN)
+        var last: Key?
         defer {
             print("\u{1B}[?25h\u{1B}[?1049l", terminator: "")
             fflush(stdout)
@@ -33,14 +49,42 @@ enum TUI {
         while !done {
             print("\u{1B}[H\u{1B}[2J" + render(), terminator: "")
             fflush(stdout)
-            // wait up to `refresh` for a keypress
             var fds = fd_set()
             fdZero(&fds); fdSet(STDIN_FILENO, &fds)
             var tv = timeval(tv_sec: Int(refresh), tv_usec: Int32((refresh - TimeInterval(Int(refresh))) * 1_000_000))
-            if select(STDIN_FILENO + 1, &fds, nil, nil, &tv) > 0 {
-                var c = UInt8(0)
-                if read(STDIN_FILENO, &c, 1) == 1, c == UInt8(ascii: "q") || c == 3 || c == 27 { done = true }
+            guard select(STDIN_FILENO + 1, &fds, nil, nil, &tv) > 0 else { continue }
+            guard let key = readKey() else { continue }
+            last = key
+            if !onKey(key) { done = true }
+        }
+        return last
+    }
+
+    private static func readByte(timeoutMs: Int) -> UInt8? {
+        var fds = fd_set()
+        fdZero(&fds); fdSet(STDIN_FILENO, &fds)
+        var tv = timeval(tv_sec: 0, tv_usec: Int32(timeoutMs * 1000))
+        guard select(STDIN_FILENO + 1, &fds, nil, nil, &tv) > 0 else { return nil }
+        var c = UInt8(0)
+        return read(STDIN_FILENO, &c, 1) == 1 ? c : nil
+    }
+
+    private static func readKey() -> Key? {
+        guard let c = readByte(timeoutMs: 50) else { return nil }
+        switch c {
+        case 3, UInt8(ascii: "q"): return .quit
+        case 13, 10: return .enter
+        case 27:
+            guard readByte(timeoutMs: 10) == UInt8(ascii: "["), let arrow = readByte(timeoutMs: 10) else { return .quit }
+            switch arrow {
+            case UInt8(ascii: "A"): return .up
+            case UInt8(ascii: "B"): return .down
+            case UInt8(ascii: "C"): return .right
+            case UInt8(ascii: "D"): return .left
+            default: return nil
             }
+        default:
+            return .char(Character(UnicodeScalar(c)))
         }
     }
 

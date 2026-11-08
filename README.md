@@ -42,13 +42,18 @@ MONITOR          monitor cpu|mem|disk|net|battery|sensors [--watch]
                  top                              live TUI dashboard (q quits)
 AUDIO            volume get|set|mute|unmute|devices|output
                  mic get|set|mute|unmute
-APPS & PORTS     apps list|quit|quit-all|quit-others|open
-                 ports list|kill <port>           window list
+APPS & PORTS     apps list|quit|quit-all|quit-others|open|uninstall
+                 switch                           TUI app switcher (↑↓ Enter q)
+                 window list|snap <preset>|zoom   AX window layout
+                 ports list|kill <port>
 FILES & CLIP     clip get|set|clear               url clean <url>...
                  trash list|empty [--dry-run]     eject [list|volume|all]
                  dmg install <file.dmg>           snip list|add|expand|remove
+                 clean scan|run [--older-than N]  cache cleaner → Trash
 CAPTURE          shot [--area|--window|--clipboard|--delay N] out.png
                  ocr --image|--screen|--clipboard color at <x> <y>|convert <c>
+                 media info|convert|gif|compress  sips / ffmpeg tools
+AGENTS           agents                           Claude/Codex/OpenCode tokens
 SYSTEM           awake [--for S|--while PID|--display]
                  display list|brightness [set N]
                  appearance dark|light|toggle     desktop-icons hide|show
@@ -75,6 +80,10 @@ vorssaint awake --for 3600 &
 vorssaint shot --area /tmp/shot.png
 vorssaint snip add today "{{date}} standup:" && vorssaint snip expand today --copy
 vorssaint brew outdated --json | jq '.formulae | length'
+vorssaint window snap left --app Safari   # halves: left right tl tr bl br thirds fill center
+vorssaint apps uninstall "Vorssaint" --dry-run
+vorssaint clean run --older-than 30 --yes # stale caches → Trash (recoverable)
+vorssaint agents                          # local Claude/Codex token usage
 ```
 
 ## What stays in the GUI (and why)
@@ -84,9 +93,9 @@ drag/drop UI (Shelf, Dynamic Island, radial menu), and menu-bar surfaces can't
 be a stateless CLI. The full classification — all 60+ app features mapped to
 cli / tui / gui / daemon — lives in [docs/FEATURES.md](docs/FEATURES.md).
 
-Planned next: `switch` (TUI app switcher), `window snap`, `record`, `agents`
-(Claude/Codex usage), `media` (ffmpeg), `clean`, `apps uninstall`, `downloads`,
-per-app volume routing. Track status via `vorssaint features`.
+Planned next: `record` (screen recording), `downloads` organizer, clipboard
+history, `clip image`, per-app volume routing. Track status via
+`vorssaint features`.
 
 ## Permissions
 

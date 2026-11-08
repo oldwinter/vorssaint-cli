@@ -34,8 +34,8 @@ This document classifies every feature by whether it belongs in a CLI, a TUI, or
 
 | Feature | Class | CLI surface | Notes |
 |---|---|---|---|
-| App switcher | tui | `switch` (planned) | Live previews stay gui; list-switcher is tui |
-| Window layout / snap / restore | cli | `window snap|move|list` | Needs Accessibility permission |
+| App switcher | tui | `switch` | Live previews stay gui; list-switcher is tui |
+| Window layout / snap | cli | `window snap|zoom|list` | Needs Accessibility permission |
 | Dock Preview | gui | — | |
 | Dock click behaviors | gui | — | Persistent preference, set via `settings` |
 | Maximize (green button zoom) | cli | `window zoom` | Needs Accessibility |
@@ -74,7 +74,7 @@ This document classifies every feature by whether it belongs in a CLI, a TUI, or
 | Feature | Class | CLI surface | Notes |
 |---|---|---|---|
 | Dynamic Island | gui | — | |
-| AI agents usage | cli | `agents` | Reads local Claude/Codex/Copilot logs; planned |
+| AI agents usage | cli | `agents` | Local Claude/Codex/OpenCode jsonl scan (no network) |
 | Command Bar | tui | `find`/`open` + `snip pick` | Fuzzy launcher subset |
 | Quick panel | gui | — | |
 | Quick toggles (appearance, desktop icons, eject, trash, lock) | cli | `appearance`, `desktop-icons`, `eject`, `trash`, `lock` | All one-shot |
@@ -93,16 +93,16 @@ This document classifies every feature by whether it belongs in a CLI, a TUI, or
 | Camera preview | gui | — | `camera shot` (planned) can grab a frame |
 | OCR from screen | cli | `ocr --screen|--image` | Vision, offline — very agent-useful |
 | Color picker | cli | `color at <x> <y>` / `pick` | |
-| Media tools (compress/convert/watermark/gif) | cli | `media ...` (planned) | Wrap ffmpeg/AVFoundation |
+| Media tools (info/convert/gif/compress) | cli | `media ...` | sips + ffmpeg |
 
 ## App management
 
 | Feature | Class | CLI surface | Notes |
 |---|---|---|---|
 | App updates | cli | `apps outdated` (brew part live) | Store updates via `mas`/`softwareupdate` |
-| Cleaner | cli | `clean scan|run --dry-run` | Planned; dry-run first always |
+| Cleaner | cli | `clean scan|run` | Moves to Trash (recoverable), `--dry-run` |
 | Messaging downloads | cli | `downloads list|organize` | Planned |
-| Uninstaller | cli | `apps uninstall <app>` | Find related files, move to trash, `--dry-run` |
+| Uninstaller | cli | `apps uninstall <app>` | Finds app + related files → Trash, `--dry-run` |
 | Homebrew manager | cli+tui | `brew ...` | Thin structured wrapper over `brew --json` |
 | Port manager | cli+tui | `ports list|kill` | lsof-backed |
 
