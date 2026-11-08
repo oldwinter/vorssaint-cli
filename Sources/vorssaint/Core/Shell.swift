@@ -21,9 +21,17 @@ enum Shell {
         do { try p.run() } catch {
             return ShellResult(status: -1, stdout: "", stderr: "failed to launch \(path): \(error.localizedDescription)")
         }
+        // Read stderr on a side thread: sequential readDataToEndOfFile deadlocks
+        // when the child fills the 64KB stderr buffer while still writing stdout.
+        nonisolated(unsafe) var errData = Data()
+        let t = Thread { errData = err.fileHandleForReading.readDataToEndOfFile() }
+        t.start()
         let o = out.fileHandleForReading.readDataToEndOfFile()
-        let e = err.fileHandleForReading.readDataToEndOfFile()
         p.waitUntilExit()
+        t.cancel()
+        var spins = 0
+        while t.isExecuting && spins < 200 { Thread.sleep(forTimeInterval: 0.01); spins += 1 }
+        let e = errData
         return ShellResult(
             status: p.terminationStatus,
             stdout: String(decoding: o, as: UTF8.self),
@@ -32,13 +40,14 @@ enum Shell {
     }
 
     static func which(_ name: String) -> String? {
-        for dir in ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/usr/sbin", "/bin", "/sbin"] {
+        // Honour the caller's PATH first (user-installed tools beat system ones),
+        // then fall back to common locations for non-login environments.
+        let pathDirs = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").map(String.init)
+        for dir in pathDirs + ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/usr/sbin", "/bin", "/sbin"] {
             let p = "\(dir)/\(name)"
             if FileManager.default.isExecutableFile(atPath: p) { return p }
         }
-        let r = run("/usr/bin/which", [name])
-        let path = r.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-        return (r.status == 0 && !path.isEmpty) ? path : nil
+        return nil
     }
 
     /// Run an interactive command inheriting stdio (for TUI-ish tools we intentionally passthrough).
