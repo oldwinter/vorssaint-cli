@@ -15,7 +15,10 @@ enum AudioHAL {
                                    _ out: inout T) -> Bool {
         var a = AudioObjectPropertyAddress(mSelector: sel, mScope: scope, mElement: element)
         var sz = UInt32(MemoryLayout<T>.size)
-        return AudioObjectGetPropertyData(id, &a, 0, nil, &sz, &out) == noErr
+        return withUnsafeMutableBytes(of: &out) { ptr in
+            guard let base = ptr.baseAddress else { return false }
+            return AudioObjectGetPropertyData(id, &a, 0, nil, &sz, base) == noErr
+        }
     }
 
     private static func setProp<T>(_ id: AudioObjectID, _ sel: AudioObjectPropertySelector,
@@ -23,7 +26,10 @@ enum AudioHAL {
                                    element: UInt32 = kAudioObjectPropertyElementMain,
                                    _ value: inout T) -> Bool {
         var a = AudioObjectPropertyAddress(mSelector: sel, mScope: scope, mElement: element)
-        return AudioObjectSetPropertyData(id, &a, 0, nil, UInt32(MemoryLayout<T>.size), &value) == noErr
+        return withUnsafeBytes(of: &value) { ptr in
+            guard let base = ptr.baseAddress else { return false }
+            return AudioObjectSetPropertyData(id, &a, 0, nil, UInt32(MemoryLayout<T>.size), base) == noErr
+        }
     }
 
     static func defaultDevice(_ scope: Scope) -> AudioObjectID? {
