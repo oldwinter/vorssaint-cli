@@ -137,13 +137,43 @@ struct Apps: ParsableCommand {
         }
     }
 
-    struct Related: Encodable { var path: String, kind: String, bytes: Int64 }
+    struct Related: Encodable { var path: String, kind: String, confidence: String, bytes: Int64 }
 
-    static func relatedFiles(appName: String, bundleID: String?) -> [Related] {
+    /// How a filesystem entry was matched to an app. Raw values appear in the
+    /// `CONFIDENCE` column and in `--json` output so users can review a
+    /// dry-run before committing to `--yes`.
+    enum MatchRule: String {
+        case app = "app"                       // the .app bundle itself
+        case bundleID = "bundle-id"            // exact bundle id
+        case bundleIDPrefix = "bundle-id-prefix" // bundle id + "." suffix, or group.<bundle-id>
+        case name = "name"                     // exact app name
+        case nameBoundary = "name-boundary"    // app name delimited by "." boundaries
+    }
+
+    /// Match one directory entry against the app. Deliberately never uses a
+    /// bare substring test: uninstalling "Vorssaint" must not claim
+    /// `vorssaint-cli` caches, and "Arc" must not claim `com.example.arcade`.
+    static func matchRule(entry: String, appName: String, bundleID: String?) -> MatchRule? {
+        let e = entry.lowercased()
+        if let bid = bundleID?.lowercased(), !bid.isEmpty {
+            if e == bid { return .bundleID }
+            if e.hasPrefix(bid + ".") { return .bundleIDPrefix }
+            // Group Containers are named group.<bundle-id>[.<suffix>].
+            if e.hasSuffix("." + bid) || e.contains("." + bid + ".") { return .bundleIDPrefix }
+        }
+        let name = appName.lowercased()
+        guard !name.isEmpty else { return nil }
+        if e == name { return .name }
+        if e.hasPrefix(name + ".") || e.hasSuffix("." + name) || e.contains("." + name + ".") {
+            return .nameBoundary
+        }
+        return nil
+    }
+
+    static func relatedFiles(appName: String, bundleID: String?,
+                             home: String = FileManager.default.homeDirectoryForCurrentUser.path) -> [Related] {
         let fm = FileManager.default
-        let home = fm.homeDirectoryForCurrentUser.path
-        var candidates: [(String, String)] = []
-        let names = [appName, bundleID].compactMap { $0 }.filter { !$0.isEmpty }
+        var candidates: [(path: String, kind: String, rule: MatchRule)] = []
         let dirs = [
             "Library/Application Support", "Library/Caches", "Library/Logs",
             "Library/HTTPStorages", "Library/WebKit", "Library/Containers",
@@ -154,30 +184,32 @@ struct Apps: ParsableCommand {
             let base = home + "/" + dir
             guard let entries = try? fm.contentsOfDirectory(atPath: base) else { continue }
             for e in entries {
-                let el = e.lowercased()
-                for n in names where el.contains(n.lowercased()) {
-                    candidates.append((base + "/" + e, dir.replacingOccurrences(of: "Library/", with: "")))
-                    break
-                }
+                guard let rule = matchRule(entry: e, appName: appName, bundleID: bundleID) else { continue }
+                candidates.append((base + "/" + e, dir.replacingOccurrences(of: "Library/", with: ""), rule))
             }
         }
         // dedupe, size up
         var seen = Set<String>()
-        return candidates.filter { seen.insert($0.0).inserted }.map { path, kind in
-            var bytes: Int64 = (try? fm.allocatedSizeOfDirectory(at: URL(fileURLWithPath: path))) ?? 0
-            if bytes == 0, let a = try? fm.attributesOfItem(atPath: path) { bytes = (a[.size] as? Int64) ?? 0 }
-            return Related(path: path, kind: kind, bytes: bytes)
+        return candidates.filter { seen.insert($0.path).inserted }.map { c in
+            var bytes: Int64 = (try? fm.allocatedSizeOfDirectory(at: URL(fileURLWithPath: c.path))) ?? 0
+            if bytes == 0, let a = try? fm.attributesOfItem(atPath: c.path) { bytes = (a[.size] as? Int64) ?? 0 }
+            return Related(path: c.path, kind: c.kind, confidence: c.rule.rawValue, bytes: bytes)
         }.sorted { $0.bytes > $1.bytes }
     }
 
     struct Uninstall: ParsableCommand {
         static let configuration = CommandConfiguration(
             abstract: "Uninstall an app and show related files (moves to Trash)",
-            discussion: "Finds the .app plus caches, preferences, containers and support dirs matching the app name/bundle id, then moves everything to the Trash."
+            discussion: """
+            Finds the .app plus caches, preferences, containers and support dirs, then moves everything to the Trash.
+            Related files are matched by bundle id (exact or prefix) and by app-name boundaries — never by bare
+            substring — so "Vorssaint" does not claim "vorssaint-cli" data and "Arc" does not claim "arcade".
+            Each row's CONFIDENCE column names the rule that matched it; review with --dry-run first.
+            """
         )
         @OptionGroup var g: GlobalOptions
         @Argument(help: "App name") var app: String
-        @Flag(name: .long, help: "Only remove the .app, keep user data") var appOnly = false
+        @Flag(name: .long, help: "Only remove the .app, keep user data (default: include matched data)") var appOnly = false
         @Flag(name: .long) var dryRun = false
         @Flag(name: .long) var yes = false
         func run() throws {
@@ -203,22 +235,26 @@ struct Apps: ParsableCommand {
 
             var targets: [Related] = []
             let appSize = (try? fm.allocatedSizeOfDirectory(at: URL(fileURLWithPath: appPath))) ?? 0
-            targets.append(Related(path: appPath, kind: "app", bytes: appSize))
+            targets.append(Related(path: appPath, kind: "app", confidence: Apps.MatchRule.app.rawValue, bytes: appSize))
             if !appOnly { targets += Apps.relatedFiles(appName: displayName, bundleID: bundleID) }
 
-            if Out.json && !dryRun {
-                Out.emit(targets) { "" }
-            } else {
+            func printTable() {
                 print(ANSI.bold("\(displayName)") + (bundleID.map { ANSI.dim("  \($0)") } ?? ""))
-                Out.table(["SIZE", "KIND", "PATH"], rows: targets.map { [fmtBytes(UInt64($0.bytes)), $0.kind, $0.path] })
+                Out.table(["SIZE", "KIND", "CONFIDENCE", "PATH"], rows: targets.map {
+                    [fmtBytes(UInt64($0.bytes)), $0.kind, $0.confidence, $0.path]
+                })
             }
             if dryRun {
-                struct R: Encodable { var wouldTrash: Int, bytes: Int64 }
-                Out.emit(R(wouldTrash: targets.count, bytes: targets.reduce(0) { $0 + $1.bytes })) {
-                    "--dry-run: nothing moved"
-                }
+                // Keep --json machine-readable: one envelope carrying every
+                // row (with its match rule) instead of a table + JSON mix.
+                struct R: Encodable { var dryRun: Bool, wouldTrash: Int, bytes: Int64, items: [Related] }
+                let summary = R(dryRun: true, wouldTrash: targets.count,
+                                bytes: targets.reduce(0) { $0 + $1.bytes }, items: targets)
+                if Out.json { Out.emit(summary) { "" } }
+                else { printTable(); print("--dry-run: nothing moved") }
                 return
             }
+            if Out.json { Out.emit(targets) { "" } } else { printTable() }
             Out.confirm("Move \(targets.count) items (\(fmtBytes(UInt64(targets.reduce(0) { $0 + $1.bytes })))) to Trash?", yes: yes)
             // quit the app first if running
             if let running = Apps.match(displayName) { _ = running.terminate() }
