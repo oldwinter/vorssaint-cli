@@ -46,7 +46,10 @@ APPS & PORTS     apps list|quit|quit-all|quit-others|open|uninstall
                  switch                           TUI app switcher (↑↓ Enter q)
                  window list|snap <preset>|zoom   AX window layout
                  ports list|kill <port>
-FILES & CLIP     clip get|set|clear               url clean <url>...
+FILES & CLIP     clip get|set|clear               images: get --image / set --image f.png
+                 downloads list|organize          ~/Downloads by source/age/type, tidy by type
+                 note [text]|list|show|edit       markdown scratchpad in ~/.config/vorssaint/notes
+                 url clean <url>...
                  trash list|empty [--dry-run]     eject [list|volume|all]
                  dmg install <file.dmg>           snip list|add|expand|remove
                  clean scan|run [--older-than N]  cache cleaner → Trash
@@ -81,6 +84,9 @@ vorssaint awake --for 3600 &
 vorssaint shot --area /tmp/shot.png
 vorssaint record /tmp/demo.mov --duration 10   # ScreenCaptureKit, primary display
 vorssaint snip add today "{{date}} standup:" && vorssaint snip expand today --copy
+vorssaint note "ship the release notes"        # appends to today's note
+vorssaint downloads organize --dry-run         # preview, then --yes to apply
+vorssaint clip get --image > /tmp/paste.png    # clipboard image round-trip
 vorssaint brew outdated --json | jq '.formulae | length'
 vorssaint window snap left --app Safari   # presets: halves corners thirds fill center cycle; --index/--display
 vorssaint apps uninstall "Vorssaint" --dry-run
@@ -95,7 +101,7 @@ drag/drop UI (Shelf, Dynamic Island, radial menu), and menu-bar surfaces can't
 be a stateless CLI. The full classification — all 60+ app features mapped to
 cli / tui / gui / daemon — lives in [docs/FEATURES.md](docs/FEATURES.md).
 
-Planned next: `downloads` organizer, clipboard history, per-app volume routing. Track status via
+Planned next: clipboard history, per-app volume routing. Track status via
 `vorssaint features`.
 
 ## Permissions
