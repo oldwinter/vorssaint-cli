@@ -5,6 +5,10 @@ import Foundation
 // Tiny ANSI TUI loop: alternate screen, hide cursor, raw input, redraw each tick.
 // `q`, Esc or Ctrl-C exits.
 
+/// Set by the SIGWINCH handler; polled by the render loop to force a repaint.
+private nonisolated(unsafe) var _tuiResized = false
+private func _tuiOnWinch(_: Int32) { _tuiResized = true }
+
 enum TUI {
     nonisolated(unsafe) private static var original = termios()
 
@@ -38,21 +42,29 @@ enum TUI {
         fflush(stdout)
 
         signal(SIGINT, SIG_IGN)
+        // SIGWINCH without SA_RESTART → select() returns EINTR → repaint next loop.
+        var sa = sigaction()
+        sa.__sigaction_u.__sa_handler = _tuiOnWinch
+        sigemptyset(&sa.sa_mask)
+        sigaction(SIGWINCH, &sa, nil)
         var last: Key?
         defer {
             print("\u{1B}[?25h\u{1B}[?1049l", terminator: "")
             fflush(stdout)
             tcsetattr(STDIN_FILENO, TCSAFLUSH, &original)
+            signal(SIGWINCH, SIG_DFL)
         }
 
         var done = false
         while !done {
-            print("\u{1B}[H\u{1B}[2J" + render(), terminator: "")
+            _tuiResized = false
+            let (cols, rows) = size()
+            print("\u{1B}[H\u{1B}[2J" + fit(render(), cols: cols, rows: rows), terminator: "")
             fflush(stdout)
             var fds = fd_set()
             fdZero(&fds); fdSet(STDIN_FILENO, &fds)
             var tv = timeval(tv_sec: Int(refresh), tv_usec: Int32((refresh - TimeInterval(Int(refresh))) * 1_000_000))
-            guard select(STDIN_FILENO + 1, &fds, nil, nil, &tv) > 0 else { continue }
+            if select(STDIN_FILENO + 1, &fds, nil, nil, &tv) <= 0 || _tuiResized { continue }
             guard let key = readKey() else { continue }
             last = key
             if !onKey(key) { done = true }
@@ -102,6 +114,68 @@ enum TUI {
         case 7: set.fds_bits.7 |= 1 << bit
         default: break
         }
+    }
+
+    /// Live terminal size (cols, rows) via TIOCGWINSZ; falls back to 80×24.
+    static func size() -> (cols: Int, rows: Int) {
+        var ws = winsize()
+        if ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0, ws.ws_col > 0, ws.ws_row > 0 {
+            return (Int(ws.ws_col), Int(ws.ws_row))
+        }
+        return (80, 24)
+    }
+
+    /// Pads a line to `cols` visible columns (ANSI-aware).
+    static func pad(_ s: String, cols: Int) -> String {
+        let w = visibleWidth(s)
+        return w >= cols ? s : s + String(repeating: " ", count: cols - w)
+    }
+
+    /// Visible column count, ignoring ANSI CSI escape sequences.
+    static func visibleWidth(_ s: String) -> Int {
+        var n = 0, i = s.startIndex
+        while i < s.endIndex {
+            if s[i] == "\u{1B}", let end = csiEnd(in: s, from: i) { i = end; continue }
+            n += 1
+            i = s.index(after: i)
+        }
+        return n
+    }
+
+    /// Clips a frame to the terminal: lines truncated to `cols` visible
+    /// columns, no more than `rows` lines emitted.
+    private static func fit(_ frame: String, cols: Int, rows: Int) -> String {
+        frame.split(separator: "\n", omittingEmptySubsequences: false)
+            .prefix(rows)
+            .map { truncate(String($0), cols: cols) }
+            .joined(separator: "\n")
+    }
+
+    /// Truncates a line to `cols` visible columns, keeping ANSI sequences;
+    /// a cut inside styled text gets a reset so attributes can't bleed.
+    private static func truncate(_ s: String, cols: Int) -> String {
+        var out = "", n = 0, i = s.startIndex
+        while i < s.endIndex {
+            if s[i] == "\u{1B}", let end = csiEnd(in: s, from: i) {
+                out.append(contentsOf: s[i..<end]); i = end; continue
+            }
+            if n >= cols { break }
+            out.append(s[i]); n += 1; i = s.index(after: i)
+        }
+        if i < s.endIndex, s.contains("\u{1B}") { out += "\u{1B}[0m" }
+        return out
+    }
+
+    /// Index just past an ANSI CSI sequence starting at `esc` (ESC '[' … final byte 0x40–0x7E).
+    private static func csiEnd(in s: String, from esc: String.Index) -> String.Index? {
+        var i = s.index(after: esc)
+        guard i < s.endIndex, s[i] == "[" else { return nil }
+        i = s.index(after: i)
+        while i < s.endIndex {
+            if ("\u{40}"..."\u{7E}").contains(s[i]) { return s.index(after: i) }
+            i = s.index(after: i)
+        }
+        return s.endIndex
     }
 
     static func bar(_ pct: Double, width: Int = 24) -> String {
