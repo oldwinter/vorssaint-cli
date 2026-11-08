@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-smoke:
+    name: Build, test & smoke (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: swift --version
+
+      - name: Build (release)
+        run: swift build -c release
+
+      - name: XCTest
+        run: swift test
+
+      - name: Smoke test (permission-free commands)
+        run: |
+          set -euo pipefail
+          BIN=.build/release/vorssaint
+          $BIN --version
+          $BIN --help > /dev/null
+          $BIN --selftest
+          $BIN features --json \
+            | jq -e '.ok == true and (.data | length) > 0 and ([.data[].status] | all(. == "available" or . == "planned"))'
+          $BIN monitor cpu --json | jq -e '.ok == true and .data.usedPercent >= 0'
+          $BIN apps list --json | jq -e '.ok == true'
+          cleaned=$(printf '%s\n' 'https://example.com/?utm_source=x&fbclid=y&q=1' | $BIN url clean --plain)
+          test "$cleaned" = "https://example.com/?q=1"
+          echo "url clean roundtrip: $cleaned"
+
+      - name: Completion scripts
+        run: |
+          set -euo pipefail
+          BIN=.build/release/vorssaint
+          mkdir -p completions
+          for shell in zsh bash fish; do
+            $BIN --generate-completion-script "$shell" > "completions/vorssaint.$shell"
+            test -s "completions/vorssaint.$shell"
+          done
+          wc -l completions/*
+
+      - name: Upload completions
+        uses: actions/upload-artifact@v4
+        with:
+          name: completions
+          path: completions/
+
+  release:
+    name: Package & publish release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-and-smoke
+    runs-on: macos-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build universal binary
+        run: swift build -c release --arch arm64 --arch x86_64
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          # SwiftPM moved multi-arch products between toolchains; ask it.
+          BIN="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)/vorssaint"
+          test -x "$BIN"
+          lipo -info "$BIN"
+          mkdir -p dist
+          tar -czf "dist/vorssaint-${TAG}-macos-universal.tar.gz" -C "$(dirname "$BIN")" vorssaint
+          (cd dist && shasum -a 256 "vorssaint-${TAG}-macos-universal.tar.gz" \
+            > "vorssaint-${TAG}-macos-universal.tar.gz.sha256")
+          ls -l dist
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --generate-notes
+          gh release upload "$TAG" dist/* --clobber

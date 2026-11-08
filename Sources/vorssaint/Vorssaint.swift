@@ -41,4 +41,15 @@ struct Vorssaint: ParsableCommand {
         ],
         defaultSubcommand: nil
     )
+
+    /// Permission-free sanity checks used by CI and `install.sh` verification.
+    @Flag(help: .hidden) var selftest = false
+
+    func run() throws {
+        if selftest {
+            try SelfTest.run()
+            return
+        }
+        throw CleanExit.helpRequest(self)
+    }
 }
