@@ -35,7 +35,7 @@ enum Catalog {
         .init(command: "trash list|empty", summary: "Trash inspection & empty", status: "available"),
         .init(command: "eject <vol|all>", summary: "Eject volumes", status: "available"),
         .init(command: "shot", summary: "Screenshots (screen/window/area)", status: "available"),
-        .init(command: "record start|stop", summary: "Screen recording", status: "planned"),
+        .init(command: "record [out] --duration N", summary: "Screen recording (ScreenCaptureKit)", status: "available"),
         .init(command: "media info|convert|gif|compress", summary: "Local media tools (sips/ffmpeg)", status: "available"),
         .init(command: "clean scan|run", summary: "Cache/log cleaner (trashes)", status: "available"),
         .init(command: "agents", summary: "Claude/Codex/OpenCode local usage", status: "available"),

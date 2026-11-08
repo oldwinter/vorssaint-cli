@@ -89,7 +89,7 @@ This document classifies every feature by whether it belongs in a CLI, a TUI, or
 |---|---|---|---|
 | Screenshot | cli | `shot --screen|--window|--area` | screencapture/ScreenCaptureKit |
 | Screenshot annotate/edit | gui | — | Editor stays gui |
-| Screen recording | cli | `record start|stop` (planned) | ScreenCaptureKit; editing → `media` |
+| Screen recording | cli | `record [out] --duration N` | ScreenCaptureKit + AVAssetWriter; editing → `media` |
 | Camera preview | gui | — | `camera shot` (planned) can grab a frame |
 | OCR from screen | cli | `ocr --screen|--image` | Vision, offline — very agent-useful |
 | Color picker | cli | `color at <x> <y>` / `pick` | |
