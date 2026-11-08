@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+import AppKit
 import ArgumentParser
+import CoreAudio
 import Foundation
 
 struct VolumeState: Encodable {
@@ -9,7 +11,7 @@ struct VolumeState: Encodable {
 struct Volume: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Output volume, mute and audio devices",
-        subcommands: [Get.self, Set.self, Mute.self, Unmute.self, Devices.self, Output.self],
+        subcommands: [Get.self, Set.self, Mute.self, Unmute.self, Devices.self, Output.self, Route.self],
         defaultSubcommand: Get.self
     )
 
@@ -97,6 +99,93 @@ struct Volume: ParsableCommand {
                 Out.fail("set_failed", "could not switch output to \(AudioHAL.name(dev))")
             }
             Out.emit(state()!) { "output → \(AudioHAL.name(dev))" }
+        }
+    }
+
+    struct Route: ParsableCommand {
+        static let configuration = CommandConfiguration(
+            abstract: "Show or set per-app output routing",
+            discussion: """
+            Uses the public CoreAudio process-object API. Listing and reading are
+            supported everywhere; changing another app's routing is attempted and
+            verified by reading it back — macOS may reject the write.
+
+              vorssaint volume route
+              vorssaint volume route --app Safari
+              vorssaint volume route --app Safari --device "MacBook Speakers"
+            """
+        )
+        @OptionGroup var g: GlobalOptions
+        @Option(help: "App name, bundle id or pid (omit to list audio processes)") var app: String?
+        @Option(help: "Output device name, uid or id (omit to show only)") var device: String?
+
+        struct Entry: Encodable {
+            var pid: Int32, name: String, bundleID: String
+            var deviceIDs: [UInt32], devices: [String]
+        }
+
+        static func entry(_ p: AudioHAL.Process) -> Entry {
+            Entry(pid: p.pid,
+                  name: NSRunningApplication(processIdentifier: p.pid)?.localizedName ?? "",
+                  bundleID: p.bundleID, deviceIDs: p.outputDevices,
+                  devices: p.outputDevices.map { AudioHAL.name(AudioObjectID($0)) })
+        }
+
+        static func find(_ query: String) -> AudioHAL.Process? {
+            let all = AudioHAL.processes()
+            if let pid = Int32(query) { return all.first { $0.pid == pid } }
+            let q = query.lowercased()
+            return all.first { $0.bundleID.lowercased() == q }
+                ?? all.first { $0.bundleID.lowercased().contains(q) }
+                ?? all.first {
+                    (NSRunningApplication(processIdentifier: $0.pid)?.localizedName ?? "")
+                        .lowercased().contains(q)
+                }
+        }
+
+        func run() throws {
+            wireOutput(g, command: "vorssaint volume route")
+            if app == nil {
+                let all = AudioHAL.processes().map(Self.entry).sorted { $0.pid < $1.pid }
+                if Out.json { Out.emit(all) { "" } }
+                else {
+                    Out.table(["PID", "APP", "BUNDLE", "OUTPUT"], rows: all.map {
+                        [String($0.pid), $0.name.isEmpty ? "-" : $0.name,
+                         $0.bundleID.isEmpty ? "-" : $0.bundleID,
+                         $0.devices.isEmpty ? "-" : $0.devices.joined(separator: ", ")]
+                    })
+                }
+                return
+            }
+            guard let query = app, let proc = Self.find(query) else {
+                Out.fail("not_found",
+                         "no audio process matching '\(app ?? "")' — run `vorssaint volume route` to list them",
+                         exit: .notFound)
+            }
+            let before = Self.entry(proc)
+            let label = before.name.isEmpty ? before.bundleID : before.name
+            guard let device else {
+                if Out.json { Out.emit(before) { "" } }
+                else {
+                    print("\(label) (pid \(before.pid)) → "
+                        + (before.devices.isEmpty ? "system default" : before.devices.joined(separator: ", ")))
+                }
+                return
+            }
+            guard let dev = AudioHAL.findDevice(device, scope: .output) else {
+                Out.fail("not_found", "no output device matching '\(device)' — see `vorssaint volume devices`", exit: .notFound)
+            }
+            let wrote = AudioHAL.setProcessDevices(AudioObjectID(proc.id), scope: .output, [dev])
+            let after = Self.entry(AudioHAL.processes().first { $0.id == proc.id } ?? proc)
+            guard wrote, after.deviceIDs.contains(UInt32(dev)) else {
+                Out.fail("unsupported",
+                         "macOS did not accept routing \(label) to \(AudioHAL.name(dev)) — the public process API is read-only for other apps' audio (per-app routing needs the private kAudioHardwareServiceProcessObjectID path, not implemented)",
+                         exit: .notImplemented)
+            }
+            struct R: Encodable { var app: String, pid: Int32, device: String, deviceID: UInt32 }
+            Out.emit(R(app: label, pid: before.pid, device: AudioHAL.name(dev), deviceID: dev)) {
+                "\(label) → \(AudioHAL.name(dev))"
+            }
         }
     }
 }

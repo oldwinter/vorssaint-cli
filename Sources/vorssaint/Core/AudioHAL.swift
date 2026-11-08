@@ -110,4 +110,63 @@ enum AudioHAL {
         let q = query.lowercased()
         return all.first(where: { $0.name.lowercased().contains(q) }).map { AudioObjectID($0.id) }
     }
+
+    // MARK: - Per-process routing (public HAL process objects)
+
+    struct Process: Encodable {
+        var id: UInt32
+        var pid: Int32
+        var bundleID: String
+        var outputDevices: [UInt32]
+    }
+
+    private static func objectIDArray(_ id: AudioObjectID, _ sel: AudioObjectPropertySelector,
+                                      scope: AudioObjectPropertyScope) -> [AudioObjectID] {
+        var a = AudioObjectPropertyAddress(mSelector: sel, mScope: scope, mElement: kAudioObjectPropertyElementMain)
+        var sz = UInt32(0)
+        guard AudioObjectGetPropertyDataSize(id, &a, 0, nil, &sz) == noErr, sz > 0 else { return [] }
+        var ids = [AudioObjectID](repeating: 0, count: Int(sz) / MemoryLayout<AudioObjectID>.size)
+        guard AudioObjectGetPropertyData(id, &a, 0, nil, &sz, &ids) == noErr else { return [] }
+        return ids
+    }
+
+    static func processObjectIDs() -> [AudioObjectID] {
+        objectIDArray(AudioObjectID(kAudioObjectSystemObject), kAudioHardwarePropertyProcessObjectList,
+                      scope: kAudioObjectPropertyScopeGlobal)
+    }
+
+    static func processPID(_ proc: AudioObjectID) -> Int32? {
+        var pid: pid_t = 0
+        return getProp(proc, kAudioProcessPropertyPID, &pid) ? Int32(pid) : nil
+    }
+
+    static func processBundleID(_ proc: AudioObjectID) -> String {
+        var cf: CFString = "" as CFString
+        return getProp(proc, kAudioProcessPropertyBundleID, &cf) ? cf as String : ""
+    }
+
+    static func processDevices(_ proc: AudioObjectID, scope: Scope) -> [AudioObjectID] {
+        objectIDArray(proc, kAudioProcessPropertyDevices, scope: scope.prop)
+    }
+
+    /// Public HAL exposes process devices; on many macOS versions the write is
+    /// accepted only for the calling process, so callers must read back.
+    static func setProcessDevices(_ proc: AudioObjectID, scope: Scope, _ ids: [AudioObjectID]) -> Bool {
+        var a = AudioObjectPropertyAddress(mSelector: kAudioProcessPropertyDevices,
+                                           mScope: scope.prop,
+                                           mElement: kAudioObjectPropertyElementMain)
+        var list = ids
+        return list.withUnsafeMutableBytes { ptr in
+            guard let base = ptr.baseAddress else { return false }
+            return AudioObjectSetPropertyData(proc, &a, 0, nil, UInt32(ptr.count), base) == noErr
+        }
+    }
+
+    static func processes() -> [Process] {
+        processObjectIDs().compactMap { proc in
+            guard let pid = processPID(proc), pid > 0 else { return nil }
+            return Process(id: proc, pid: pid, bundleID: processBundleID(proc),
+                           outputDevices: processDevices(proc, scope: .output).map { $0 })
+        }
+    }
 }

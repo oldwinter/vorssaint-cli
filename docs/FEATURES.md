@@ -14,8 +14,8 @@ This document classifies every feature by whether it belongs in a CLI, a TUI, or
 
 | Feature | Class | CLI surface | Notes |
 |---|---|---|---|
-| Volume mixer (per-app volume, boost) | cli+tui | `volume get/set/mute`, `volume --app` | Per-app volume via CoreAudio; boost uses per-process gain |
-| Per-app output routing | cli | `volume route --app <a> --device <d>` | Planned |
+| Volume mixer (per-app volume, boost) | cli+tui | `volume get/set/mute`, `volume route` | Per-app volume via CoreAudio; boost uses per-process gain |
+| Per-app output routing | cli | `volume route --app <a> --device <d>` | Public HAL process objects; write is verified and may be rejected by macOS |
 | Output switcher | cli | `volume devices`, `volume output <device>` | Auto-lower-on-disconnect is daemon → gui |
 | Microphone tools | cli | `mic get/set/mute` | Input level/mute via CoreAudio |
 | Music app blocker | daemon | — | Needs launch-watch daemon |
@@ -25,7 +25,7 @@ This document classifies every feature by whether it belongs in a CLI, a TUI, or
 | Feature | Class | CLI surface | Notes |
 |---|---|---|---|
 | System monitor (cpu/gpu/mem/temps/battery/energy) | cli+tui | `monitor cpu|mem|disk|net|battery`, `top` | `--watch` = TUI dashboard |
-| Fan control | cli | `sensors fans`, `fans set` | Read via IOKit/SMC; set is planned (SMC write) |
+| Fan control | cli | `fans list|set|auto`, `monitor sensors` | Read via IOKit/SMC; set clamps to the reported range, requires --yes, and verifies the read-back |
 | Menu bar readouts | gui | — | Menu bar only |
 | Network (traffic, totals, IP, speed test) | cli | `net`, `ip`, `speedtest` | `networkQuality` for speed test |
 | Alerts | daemon | — | One-shot equivalents live under `doctor` |
@@ -90,7 +90,7 @@ This document classifies every feature by whether it belongs in a CLI, a TUI, or
 | Screenshot | cli | `shot --screen|--window|--area` | screencapture/ScreenCaptureKit |
 | Screenshot annotate/edit | gui | — | Editor stays gui |
 | Screen recording | cli | `record [out] --duration N` | ScreenCaptureKit + AVAssetWriter; editing → `media` |
-| Camera preview | gui | — | `camera shot` (planned) can grab a frame |
+| Camera preview | cli | `camera list|shot` | Single frame via AVCaptureSession → PNG/JPEG |
 | OCR from screen | cli | `ocr --screen|--image` | Vision, offline — very agent-useful |
 | Color picker | cli | `color at <x> <y>` / `pick` | |
 | Media tools (info/convert/gif/compress) | cli | `media ...` | sips + ffmpeg |
@@ -111,8 +111,8 @@ This document classifies every feature by whether it belongs in a CLI, a TUI, or
 | Feature | Class | CLI surface | Notes |
 |---|---|---|---|
 | Keep awake | cli | `awake [--for|--while]` | IOPMAssertion / caffeinate semantics |
-| Displays / brightness | cli | `display list|brightness` | DDC/planned for external monitors |
-| Extra brightness (XDR) | cli | `display boost` | Planned (private API) |
+| Displays / brightness | cli | `display list|brightness|boost|ddc` | DDC/CI through ddcctl/m1ddc; boost uses private DisplayServices and fails clearly on non-XDR panels |
+| Extra brightness (XDR) | cli | `display boost [--amount 1.0–1.6]` | Private DisplayServices; verified by reading brightness back |
 | Bluetooth on sleep | daemon | — | `bluetooth on|off` is cli |
 
 ## Existing hidden flags → first-class commands
