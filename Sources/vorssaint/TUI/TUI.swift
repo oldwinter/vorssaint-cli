@@ -96,7 +96,25 @@ enum TUI {
             default: return nil
             }
         default:
-            return .char(Character(UnicodeScalar(c)))
+            // Keys arrive byte-wise: accumulate multi-byte UTF-8 (CJK app
+            // names, emoji) and emit .char only for a complete scalar.
+            // ASCII and control bytes (incl. 0x7F backspace) pass through.
+            let width: Int
+            switch c {
+            case 0x00...0x7F: width = 1
+            case 0xC2...0xDF: width = 2
+            case 0xE0...0xEF: width = 3
+            case 0xF0...0xF4: width = 4
+            default: return nil // stray continuation / invalid lead byte
+            }
+            var bytes = [c]
+            while bytes.count < width {
+                guard let next = readByte(timeoutMs: 10), next & 0xC0 == 0x80 else { return nil }
+                bytes.append(next)
+            }
+            let text = String(decoding: bytes, as: UTF8.self)
+            guard text.unicodeScalars.count == 1, let scalar = text.unicodeScalars.first else { return nil }
+            return .char(Character(scalar))
         }
     }
 
