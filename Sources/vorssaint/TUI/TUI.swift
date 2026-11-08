@@ -1,0 +1,120 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+import ArgumentParser
+import Foundation
+
+// Tiny ANSI TUI loop: alternate screen, hide cursor, raw input, redraw each tick.
+// `q`, Esc or Ctrl-C exits.
+
+enum TUI {
+    nonisolated(unsafe) private static var original = termios()
+
+    static func run(refresh: TimeInterval = 1.0, _ render: @escaping () -> String) {
+        guard stdoutIsTTY else { print(render()); return }
+
+        var raw = termios()
+        tcgetattr(STDIN_FILENO, &original)
+        raw = original
+        raw.c_lflag &= ~UInt(ICANON | ECHO)
+        raw.c_cc.16 = 0 // VMIN
+        raw.c_cc.17 = 1 // VTIME (tenths of a second)
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw)
+
+        print("\u{1B}[?1049h\u{1B}[?25l", terminator: "")
+        fflush(stdout)
+
+        signal(SIGINT, SIG_IGN)
+        defer {
+            print("\u{1B}[?25h\u{1B}[?1049l", terminator: "")
+            fflush(stdout)
+            tcsetattr(STDIN_FILENO, TCSAFLUSH, &original)
+        }
+
+        var done = false
+        while !done {
+            print("\u{1B}[H\u{1B}[2J" + render(), terminator: "")
+            fflush(stdout)
+            // wait up to `refresh` for a keypress
+            var fds = fd_set()
+            fdZero(&fds); fdSet(STDIN_FILENO, &fds)
+            var tv = timeval(tv_sec: Int(refresh), tv_usec: Int32((refresh - TimeInterval(Int(refresh))) * 1_000_000))
+            if select(STDIN_FILENO + 1, &fds, nil, nil, &tv) > 0 {
+                var c = UInt8(0)
+                if read(STDIN_FILENO, &c, 1) == 1, c == UInt8(ascii: "q") || c == 3 || c == 27 { done = true }
+            }
+        }
+    }
+
+    private static func fdZero(_ set: inout fd_set) { set.fds_bits = (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0) }
+    private static func fdSet(_ fd: Int32, _ set: inout fd_set) {
+        let idx = Int(fd) / 32, bit = Int(fd) % 32
+        switch idx {
+        case 0: set.fds_bits.0 |= 1 << bit
+        case 1: set.fds_bits.1 |= 1 << bit
+        case 2: set.fds_bits.2 |= 1 << bit
+        case 3: set.fds_bits.3 |= 1 << bit
+        case 4: set.fds_bits.4 |= 1 << bit
+        case 5: set.fds_bits.5 |= 1 << bit
+        case 6: set.fds_bits.6 |= 1 << bit
+        case 7: set.fds_bits.7 |= 1 << bit
+        default: break
+        }
+    }
+
+    static func bar(_ pct: Double, width: Int = 24) -> String {
+        let filled = Int((pct / 100 * Double(width)).rounded())
+        let safe = max(0, min(width, filled))
+        let color = pct > 85 ? ANSI.red : (pct > 60 ? ANSI.yellow : ANSI.green)
+        return color(String(repeating: "█", count: safe)) + ANSI.dim(String(repeating: "░", count: width - safe))
+    }
+}
+
+struct Top: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        abstract: "Full-screen live dashboard (q to quit)",
+        discussion: "TUI view of CPU, memory, disk, network throughput, battery and fans."
+    )
+    @Option(help: "Refresh interval seconds") var interval: Double = 1.0
+
+    func run() throws {
+        var prevCPU = CPUTicks.sample()
+        var prevNet = NetCounters.sample()
+        var cpuBusy = 0.0, cpuUser = 0.0, cpuSys = 0.0
+        var rates: [Monitor.IfaceRate] = []
+
+        TUI.run(refresh: interval) {
+            let t = CPUTicks.sample()
+            let u = CPUTicks.usage(between: prevCPU, and: t)
+            cpuBusy = u.used; cpuUser = u.user; cpuSys = u.sys
+            prevCPU = t
+            let n = NetCounters.sample()
+            rates = Monitor.NetData.rates(prevNet, n, dt: interval)
+            prevNet = n
+
+            let m = Memory.stats()
+            let d = Disk.stats()
+            let b = Battery.stats()
+            let h = Sys.hostInfo()
+            var o = ANSI.bold("  vorssaint top") + ANSI.dim("  —  q to quit  ·  \(h.chip) · up \(fmtDuration(Sys.uptimeSeconds()))") + "\n\n"
+            o += String(format: "  CPU  %@ %5.1f%%   user %.1f  sys %.1f  load %.2f\n", TUI.bar(cpuBusy), cpuBusy, cpuUser, cpuSys, Sys.loadAvg()[0])
+            o += String(format: "  MEM  %@ %5.1f%%   %@ / %@\n", TUI.bar(m.usedPercent), m.usedPercent, fmtBytes(m.usedBytes), fmtBytes(m.totalBytes))
+            if let d {
+                o += String(format: "  DISK %@ %5.1f%%   %@ free of %@\n", TUI.bar(d.usedPercent), d.usedPercent, fmtBytes(d.freeBytes), fmtBytes(d.totalBytes))
+            }
+            o += "\n"
+            for i in rates where i.rxPerSec + i.txPerSec > 1 || i.name == "en0" {
+                o += String(format: "  %-6@ ↓ %10@/s   ↑ %10@/s\n", i.name,
+                            fmtBytes(UInt64(max(0, i.rxPerSec))), fmtBytes(UInt64(max(0, i.txPerSec))))
+            }
+            o += "\n"
+            if b.present {
+                o += String(format: "  BAT  %@ %d%%  %@%@\n", TUI.bar(Double(b.percent), width: 12), b.percent,
+                            b.charging ? "charging" : "discharging",
+                            b.temperatureC.map { String(format: "  %.0f°C", $0) } ?? "")
+            }
+            for f in SMC.fans() {
+                o += String(format: "  FAN%d %5.0f rpm\n", f.index, f.rpm)
+            }
+            return o
+        }
+    }
+}
