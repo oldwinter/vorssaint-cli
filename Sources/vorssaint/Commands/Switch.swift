@@ -39,6 +39,7 @@ struct Switch: ParsableCommand {
         }
 
         let lastKey = TUI.runInteractive(refresh: 0.5) {
+            let cols = TUI.size().cols
             let list = apps()
             var o = ANSI.bold("  vorssaint switch") + ANSI.dim("  ↑↓ move · Enter switch · type to filter · q quit") + "\n"
             if !filter.isEmpty { o += ANSI.cyan("  filter: \(filter)") + "\n" }
@@ -48,7 +49,7 @@ struct Switch: ParsableCommand {
                 let marker = a.isActive ? ANSI.green("●") : " "
                 let wins = windows(of: a)
                 let line = "  \(marker) \(name)" + ANSI.dim("  \(a.bundleIdentifier ?? "")\(wins.isEmpty ? "" : "  —  \(wins.prefix(2).joined(separator: " · "))")")
-                o += (i == sel ? "\u{1B}[7m" + line.padding(toLength: 90, withPad: " ", startingAt: 0) + "\u{1B}[0m" : line) + "\n"
+                o += (i == sel ? "\u{1B}[7m" + TUI.pad(line, cols: cols) + "\u{1B}[0m" : line) + "\n"
             }
             if list.isEmpty { o += ANSI.dim("  no matching apps") + "\n" }
             return o
