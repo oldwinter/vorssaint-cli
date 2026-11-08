@@ -11,6 +11,15 @@ private func _tuiOnWinch(_: Int32) { _tuiResized = true }
 
 enum TUI {
     nonisolated(unsafe) private static var original = termios()
+    /// Set once a termios snapshot exists, cleared after restore — keeps
+    /// atexit/signal restores idempotent and a no-op when TUI never ran.
+    nonisolated(unsafe) private static var termiosSaved = false
+    nonisolated(unsafe) private static var failsafeInstalled = false
+    /// "\e[?25h\e[?1049l" pre-encoded so signal handlers don't allocate.
+    private static let restoreSeq = "\u{1B}[?25h\u{1B}[?1049l".utf8CString
+    /// Restore + re-raise: covers SIGTERM and fatal traps (fatalError → SIGILL,
+    /// segfault → SIGSEGV/SIGBUS, etc.) that bypass `defer`.
+    private static let fatalSignals: [Int32] = [SIGTERM, SIGHUP, SIGQUIT, SIGSEGV, SIGBUS, SIGILL, SIGABRT, SIGFPE]
 
     enum Key: Equatable {
         case up, down, left, right, enter, quit, char(Character)
@@ -32,11 +41,13 @@ enum TUI {
 
         var raw = termios()
         tcgetattr(STDIN_FILENO, &original)
+        termiosSaved = true
         raw = original
         raw.c_lflag &= ~UInt(ICANON | ECHO)
         raw.c_cc.16 = 0 // VMIN
         raw.c_cc.17 = 1 // VTIME (tenths of a second)
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw)
+        installFailsafe()
 
         print("\u{1B}[?1049h\u{1B}[?25l", terminator: "")
         fflush(stdout)
@@ -49,9 +60,7 @@ enum TUI {
         sigaction(SIGWINCH, &sa, nil)
         var last: Key?
         defer {
-            print("\u{1B}[?25h\u{1B}[?1049l", terminator: "")
-            fflush(stdout)
-            tcsetattr(STDIN_FILENO, TCSAFLUSH, &original)
+            restoreTerminal()
             signal(SIGWINCH, SIG_DFL)
         }
 
@@ -70,6 +79,36 @@ enum TUI {
             if !onKey(key) { done = true }
         }
         return last
+    }
+
+    /// Async-signal-safe restore: saved termios + leave alternate screen.
+    /// Only tcsetattr/write — callable from atexit and signal handlers.
+    private static func restoreTerminal() {
+        guard termiosSaved else { return }
+        termiosSaved = false
+        var t = original
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &t)
+        restoreSeq.withUnsafeBufferPointer {
+            _ = write(STDOUT_FILENO, $0.baseAddress, $0.count - 1)
+        }
+    }
+
+    /// atexit covers exit()-based deaths; per-signal handlers cover fatal traps
+    /// by restoring, resetting to SIG_DFL, and re-raising to keep the real exit.
+    private static func installFailsafe() {
+        guard !failsafeInstalled else { return }
+        failsafeInstalled = true
+        let exitRestore: @convention(c) () -> Void = { TUI.restoreTerminal() }
+        atexit(exitRestore)
+        let crashHandler: sig_t = { sig in
+            TUI.restoreTerminal()
+            signal(sig, SIG_DFL)
+            raise(sig)
+            // BSD signal() is SA_RESTART; if the re-raise lands pending,
+            // fall back to an async-signal-safe exit(128+sig).
+            _exit(128 + sig)
+        }
+        for sig in fatalSignals { signal(sig, crashHandler) }
     }
 
     private static func readByte(timeoutMs: Int) -> UInt8? {
