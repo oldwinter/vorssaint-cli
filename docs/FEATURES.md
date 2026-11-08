@@ -61,7 +61,7 @@ This document classifies every feature by whether it belongs in a CLI, a TUI, or
 
 | Feature | Class | CLI surface | Notes |
 |---|---|---|---|
-| Clipboard history | daemon+tui | `clip get/set/clear` | History recording needs daemon → planned |
+| Clipboard history | daemon+tui | `clip get/set/clear`, `clip get/set --image` | Text + PNG/TIFF images work; history recording needs a daemon → planned |
 | Auto clear clipboard | cli | `clip clear` | One-shot; timed clearing is daemon |
 | Paste as plain text | cli | `clip set --plain`, `clip get --plain` | |
 | Shelf | gui | — | Drag/drop UI |
@@ -80,7 +80,7 @@ This document classifies every feature by whether it belongs in a CLI, a TUI, or
 | Quick toggles (appearance, desktop icons, eject, trash, lock) | cli | `appearance`, `desktop-icons`, `eject`, `trash`, `lock` | All one-shot |
 | Quit apps | cli+tui | `apps list|quit|quit-all|quit-others` | |
 | Radial menu | gui | — | |
-| Scratchpad | cli | `note` (planned) | Plain markdown files |
+| Scratchpad | cli | `note add|list|show|edit` | Plain markdown files in ~/.config/vorssaint/notes |
 | Cleaning Mode | gui | — | |
 
 ## Capture & create
@@ -101,7 +101,7 @@ This document classifies every feature by whether it belongs in a CLI, a TUI, or
 |---|---|---|---|
 | App updates | cli | `apps outdated` (brew part live) | Store updates via `mas`/`softwareupdate` |
 | Cleaner | cli | `clean scan|run` | Moves to Trash (recoverable), `--dry-run` |
-| Messaging downloads | cli | `downloads list|organize` | Planned |
+| Messaging downloads | cli | `downloads list|organize` | Group by source app / age / type; organize by type |
 | Uninstaller | cli | `apps uninstall <app>` | Finds app + related files → Trash, `--dry-run` |
 | Homebrew manager | cli+tui | `brew ...` | Thin structured wrapper over `brew --json` |
 | Port manager | cli+tui | `ports list|kill` | lsof-backed |

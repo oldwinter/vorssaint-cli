@@ -26,6 +26,7 @@ struct Vorssaint: ParsableCommand {
             Apps.self, Ports.self, WindowCmd.self, Switch.self,
             Brew.self,
             Clip.self,
+            Downloads.self, Note.self,
             URLGroup.self,
             Awake.self,
             Display.self, Appearance.self, DesktopIcons.self, Spaces.self,
