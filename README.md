@@ -29,6 +29,7 @@ Requires macOS 14+, Apple Silicon or Intel, Swift toolchain (CLT is enough).
 ```sh
 vorssaint features --json      # capability catalog with status per command
 vorssaint doctor               # environment/permission preflight
+vorssaint --selftest           # permission-free sanity checks (used by CI)
 vorssaint <cmd> --json         # {"ok":true,"command":"...","data":…}
 vorssaint <cmd> --json         # error → stderr {"ok":false,"error":{"code","message"}}
 ```
