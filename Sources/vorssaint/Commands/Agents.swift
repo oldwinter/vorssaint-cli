@@ -15,6 +15,9 @@ struct Agents: ParsableCommand {
     )
     @OptionGroup var g: GlobalOptions
 
+    @Flag(name: .long, help: "Ignore the incremental index and rescan all transcripts")
+    var reindex = false
+
     struct Report: Encodable {
         var agent: String
         var binary: String?
@@ -25,10 +28,37 @@ struct Agents: ParsableCommand {
         var lastActivity: String?
         var projects: Int?
         var truncated: Bool = false
+        var cached: Bool = false
     }
 
     // Budget: stop parsing transcripts past this many bytes; sessions are still counted.
-    static let byteBudget: Int = 250_000_000
+    static let byteBudget: Int64 = 250_000_000
+
+    // Incremental index at ~/.config/vorssaint/agents-index.json — keyed by file path.
+    // `parsedBytes` counts complete lines only, so tail-parsing never starts mid-line.
+    struct FileIndex: Codable {
+        var size: Int64
+        var mtime: Double
+        var parsedBytes: Int64
+        var tokens: Int64
+    }
+
+    struct AgentsIndex: Codable {
+        var files: [String: FileIndex] = [:]
+    }
+
+    static var indexPath: URL { Store.dir.appendingPathComponent("agents-index.json") }
+
+    static func loadIndex() -> AgentsIndex {
+        guard let d = try? Data(contentsOf: indexPath) else { return AgentsIndex() }
+        return (try? JSONDecoder().decode(AgentsIndex.self, from: d)) ?? AgentsIndex()
+    }
+
+    static func saveIndex(_ i: AgentsIndex) throws {
+        try FileManager.default.createDirectory(at: Store.dir, withIntermediateDirectories: true)
+        let e = JSONEncoder(); e.outputFormatting = [.sortedKeys]
+        try e.encode(i).write(to: indexPath, options: .atomic)
+    }
 
     private static func jsonlFiles(under dir: URL) -> [URL] {
         guard let e = FileManager.default.enumerator(at: dir, includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey], options: [.skipsHiddenFiles]) else { return [] }
@@ -51,42 +81,115 @@ struct Agents: ParsableCommand {
         Calendar.current.isDateInToday(d)
     }
 
-    static func scanClaude() -> Report {
+    /// Read `url` starting at byte `offset` (0 = whole file).
+    private static func readTail(_ url: URL, from offset: Int64) -> Data? {
+        guard offset > 0 else { return try? Data(contentsOf: url) }
+        guard let h = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? h.close() }
+        do {
+            try h.seek(toOffset: UInt64(offset))
+            return try h.readToEnd()
+        } catch { return nil }
+    }
+
+    /// Bytes through the last '\n' — we only parse and index complete lines.
+    private static func coveredBytes(_ d: Data) -> Int64 {
+        guard let i = d.lastIndex(of: 0x0A) else { return 0 }
+        return Int64(d.distance(from: d.startIndex, to: i)) + 1
+    }
+
+    /// Sum claude `usage{}` across complete lines.
+    private static func claudeTokens(in lines: Data.SubSequence) -> Int64 {
+        var tokens: Int64 = 0
+        for line in String(decoding: lines, as: UTF8.self).split(separator: "\n") where line.contains("\"usage\"") {
+            guard let j = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+                  let msg = j["message"] as? [String: Any],
+                  let u = msg["usage"] as? [String: Any] else { continue }
+            tokens += Int64(u["input_tokens"] as? Int ?? 0)
+                + Int64(u["output_tokens"] as? Int ?? 0)
+                + Int64(u["cache_creation_input_tokens"] as? Int ?? 0)
+                + Int64(u["cache_read_input_tokens"] as? Int ?? 0)
+        }
+        return tokens
+    }
+
+    /// Max codex `total_tokens` across complete lines (usage is cumulative per file).
+    private static func codexTokens(in lines: Data.SubSequence) -> Int64 {
+        var maxTotal: Int64 = 0
+        for line in String(decoding: lines, as: UTF8.self).split(separator: "\n") where line.contains("token_count") {
+            guard let j = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+                  let payload = j["payload"] as? [String: Any],
+                  let info = payload["info"] as? [String: Any],
+                  let usage = info["total_token_usage"] as? [String: Any],
+                  let t = usage["total_tokens"] as? Int else { continue }
+            maxTotal = max(maxTotal, Int64(t))
+        }
+        return maxTotal
+    }
+
+    /// Reuse `index` for unchanged files, tail-parse appended files, rescan the rest.
+    /// `fromIndex` reports whether a prior entry served (all or part of) the result.
+    private static func scanFile(_ f: URL, size: Int64, mtime: Date?, index: inout AgentsIndex,
+                                 reindex: Bool, bytesRead: inout Int64, truncated: inout Bool,
+                                 parse: (Data.SubSequence) -> Int64) -> (tokens: Int64, fromIndex: Bool) {
+        let key = f.path
+        var tokens: Int64 = 0
+        var offset: Int64 = 0
+        var fromIndex = false
+        if !reindex, let e = index.files[key] {
+            if e.size == size, e.mtime == (mtime?.timeIntervalSince1970 ?? 0) {
+                return (e.tokens, true) // entry stays as-is: parsedBytes may lag size on a partial last line
+            } else if size >= e.size, size > e.parsedBytes {
+                tokens = e.tokens; offset = e.parsedBytes; fromIndex = true
+            }
+            // shrank or rewritten → rescan whole file
+        }
+        if size > offset {
+            let toRead = size - offset
+            if toRead > 60_000_000 || bytesRead > byteBudget {
+                truncated = true
+                return (tokens, fromIndex) // keep index entry so the tail can be parsed next run
+            }
+            guard let data = readTail(f, from: offset) else { return (tokens, fromIndex) }
+            let covered = coveredBytes(data)
+            tokens += parse(data.prefix(Int(covered)))
+            offset += covered
+            bytesRead += covered
+        }
+        index.files[key] = FileIndex(size: size, mtime: mtime?.timeIntervalSince1970 ?? 0,
+                                     parsedBytes: offset, tokens: tokens)
+        return (tokens, fromIndex)
+    }
+
+    static func scanClaude(index: inout AgentsIndex, reindex: Bool) -> Report {
         let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/projects")
         let files = FileManager.default.fileExists(atPath: dir.path) ? jsonlFiles(under: dir) : []
         var projects = Set<String>()
         var total: Int64 = 0, today: Int64 = 0
         var latest: Date?
-        var bytesRead = 0, truncated = false
+        var bytesRead: Int64 = 0, truncated = false
+        var hits = 0
         for f in files {
             projects.insert(f.deletingLastPathComponent().lastPathComponent)
-            let mtime = (try? f.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+            let v = try? f.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
+            let mtime = v?.contentModificationDate
             if let m = mtime, latest.map({ m > $0 }) ?? true { latest = m }
-            let size = (try? f.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
-            if size > 60_000_000 || bytesRead > byteBudget { truncated = true; continue }
-            bytesRead += size
-            guard let data = try? Data(contentsOf: f) else { continue }
-            var fileTokens: Int64 = 0
-            for line in String(decoding: data, as: UTF8.self).split(separator: "\n") where line.contains("\"usage\"") {
-                guard let j = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
-                      let msg = j["message"] as? [String: Any],
-                      let u = msg["usage"] as? [String: Any] else { continue }
-                fileTokens += Int64(u["input_tokens"] as? Int ?? 0)
-                    + Int64(u["output_tokens"] as? Int ?? 0)
-                    + Int64(u["cache_creation_input_tokens"] as? Int ?? 0)
-                    + Int64(u["cache_read_input_tokens"] as? Int ?? 0)
-            }
-            total += fileTokens
-            if let m = mtime, isToday(m) { today += fileTokens }
+            let size = Int64(v?.fileSize ?? 0)
+            let r = scanFile(f, size: size, mtime: mtime, index: &index,
+                             reindex: reindex, bytesRead: &bytesRead,
+                             truncated: &truncated, parse: claudeTokens)
+            if r.fromIndex { hits += 1 }
+            total += r.tokens
+            if let m = mtime, isToday(m) { today += r.tokens }
         }
         return Report(agent: "claude", binary: Shell.which("claude"),
                       dataDir: files.isEmpty ? nil : dir.path, sessions: files.count,
                       tokensTotal: total, tokensToday: today,
                       lastActivity: latest.map(iso), projects: projects.count,
-                      truncated: truncated)
+                      truncated: truncated, cached: hits > 0)
     }
 
-    static func scanCodex() -> Report {
+    static func scanCodex(index: inout AgentsIndex, reindex: Bool) -> Report {
         let base = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex")
         var files: [URL] = []
         for sub in ["sessions", "archived_sessions"] {
@@ -95,31 +198,25 @@ struct Agents: ParsableCommand {
         }
         var total: Int64 = 0, today: Int64 = 0
         var latest: Date?
-        var bytesRead = 0, truncated = false
+        var bytesRead: Int64 = 0, truncated = false
+        var hits = 0
         for f in files {
-            let mtime = (try? f.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+            let v = try? f.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
+            let mtime = v?.contentModificationDate
             if let m = mtime, latest.map({ m > $0 }) ?? true { latest = m }
-            let size = (try? f.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
-            if size > 60_000_000 || bytesRead > byteBudget { truncated = true; continue }
-            bytesRead += size
-            guard let data = try? Data(contentsOf: f) else { continue }
-            var maxTotal: Int64 = 0
-            for line in String(decoding: data, as: UTF8.self).split(separator: "\n") where line.contains("token_count") {
-                guard let j = try? JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
-                      let payload = j["payload"] as? [String: Any],
-                      let info = payload["info"] as? [String: Any],
-                      let usage = info["total_token_usage"] as? [String: Any],
-                      let t = usage["total_tokens"] as? Int else { continue }
-                maxTotal = max(maxTotal, Int64(t))
-            }
-            total += maxTotal
-            if let m = mtime, isToday(m) { today += maxTotal }
+            let size = Int64(v?.fileSize ?? 0)
+            let r = scanFile(f, size: size, mtime: mtime, index: &index,
+                             reindex: reindex, bytesRead: &bytesRead,
+                             truncated: &truncated, parse: codexTokens)
+            if r.fromIndex { hits += 1 }
+            total += r.tokens
+            if let m = mtime, isToday(m) { today += r.tokens }
         }
         return Report(agent: "codex", binary: Shell.which("codex"),
                       dataDir: files.isEmpty ? nil : base.appendingPathComponent("sessions").path,
                       sessions: files.count, tokensTotal: total, tokensToday: today,
                       lastActivity: latest.map(iso), projects: nil,
-                      truncated: truncated)
+                      truncated: truncated, cached: hits > 0)
     }
 
     static func scanOpencode() -> Report {
@@ -138,7 +235,14 @@ struct Agents: ParsableCommand {
 
     func run() throws {
         wireOutput(g, command: "vorssaint agents")
-        let reports = [Agents.scanClaude(), Agents.scanCodex(), Agents.scanOpencode()]
+        var index = reindex ? AgentsIndex() : Agents.loadIndex()
+        let reports = [
+            Agents.scanClaude(index: &index, reindex: reindex),
+            Agents.scanCodex(index: &index, reindex: reindex),
+            Agents.scanOpencode(),
+        ]
+        index.files = index.files.filter { FileManager.default.fileExists(atPath: $0.key) }
+        try? Agents.saveIndex(index)
         if Out.json { Out.emit(reports) { "" } }
         else {
             Out.table(["AGENT", "BINARY", "SESSIONS", "TOKENS", "TODAY", "LAST"], rows: reports.map { r in
