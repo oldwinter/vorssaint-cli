@@ -80,7 +80,7 @@ vorssaint awake --for 3600 &
 vorssaint shot --area /tmp/shot.png
 vorssaint snip add today "{{date}} standup:" && vorssaint snip expand today --copy
 vorssaint brew outdated --json | jq '.formulae | length'
-vorssaint window snap left --app Safari   # halves: left right tl tr bl br thirds fill center
+vorssaint window snap left --app Safari   # presets: halves corners thirds fill center cycle; --index/--display
 vorssaint apps uninstall "Vorssaint" --dry-run
 vorssaint clean run --older-than 30 --yes # stale caches → Trash (recoverable)
 vorssaint agents                          # local Claude/Codex token usage
