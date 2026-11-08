@@ -12,16 +12,17 @@ import Foundation
 enum VExit: Int32, Error {
     case ok = 0
     case runtime = 1
+    case usage = 2
     case notImplemented = 3
     case permission = 4
     case notFound = 5
 }
 
 struct GlobalOptions: ParsableArguments {
-    @Flag(name: .long, help: "Emit a JSON envelope on stdout")
+    @Flag(name: .long, help: "Emit a JSON envelope on stdout (conflicts with --plain)")
     var json = false
 
-    @Flag(name: .long, help: "Plain output: no ANSI, no table formatting")
+    @Flag(name: .long, help: "Plain output: no ANSI, no table formatting (conflicts with --json)")
     var plain = false
 }
 
@@ -137,6 +138,8 @@ extension ParsableCommand {
         Out.currentCommand = name
         Out.json = g.json
         Out.plain = g.plain
-        if g.plain { Out.json = g.json } // both allowed; json wins for envelope
+        if g.json && g.plain {
+            Out.fail("usage", "--json and --plain are mutually exclusive; pass exactly one output mode.", exit: .usage)
+        }
     }
 }
