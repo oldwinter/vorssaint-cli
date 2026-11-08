@@ -9,9 +9,31 @@ struct Eject: ParsableCommand {
         defaultSubcommand: ListVols.self
     )
 
+    struct Vol: Encodable { var name: String, ejectable: Bool }
+
     static func volumes() -> [String] {
         (try? FileManager.default.contentsOfDirectory(atPath: "/Volumes"))?
             .filter { $0 != "Macintosh HD" && !$0.hasPrefix(".") } ?? []
+    }
+
+    /// `diskutil info -plist` says whether a volume may be ejected. Internal
+    /// volumes (Data, Time Machine destinations, recovery) report
+    /// `Ejectable = false`; on failure we conservatively return false.
+    static func isEjectable(_ name: String) -> Bool {
+        let r = Shell.run("/usr/sbin/diskutil", ["info", "-plist", "/Volumes/\(name)"])
+        guard r.status == 0,
+              let dict = try? PropertyListSerialization.propertyList(
+                  from: Data(r.stdout.utf8), options: [], format: nil) as? [String: Any]
+        else { return false }
+        if let ejectable = dict["Ejectable"] as? Bool { return ejectable }
+        if let location = dict["DeviceLocation"] as? String { return location == "External" }
+        return false
+    }
+
+    /// Mounted volumes with their ejectable flag, ejectable first.
+    static func vols() -> [Vol] {
+        volumes().map { Vol(name: $0, ejectable: isEjectable($0)) }
+            .sorted { $0.ejectable != $1.ejectable ? $0.ejectable : $0.name < $1.name }
     }
 
     struct ListVols: ParsableCommand {
@@ -19,8 +41,14 @@ struct Eject: ParsableCommand {
         @OptionGroup var g: GlobalOptions
         func run() throws {
             wireOutput(g, command: "vorssaint eject list")
-            let vs = Eject.volumes()
-            Out.emit(vs) { vs.isEmpty ? "no external volumes" : vs.joined(separator: "\n") }
+            let vs = Eject.vols()
+            if Out.json {
+                Out.emit(vs) { "" }
+            } else if vs.isEmpty {
+                Out.emit(vs) { "no external volumes" }
+            } else {
+                Out.table(["NAME", "EJECTABLE"], rows: vs.map { [$0.name, $0.ejectable ? "yes" : "no"] })
+            }
         }
     }
 
@@ -49,14 +77,16 @@ struct Eject: ParsableCommand {
         @Flag(name: .long) var yes = false
         func run() throws {
             wireOutput(g, command: "vorssaint eject all")
-            let vs = Eject.volumes()
-            if vs.isEmpty { Out.emit([String]()) { "no external volumes" }; return }
+            let all = Eject.vols()
+            let vs = all.filter(\.ejectable).map(\.name)
+            let skipped = all.filter { !$0.ejectable }.map(\.name)
+            if vs.isEmpty { Out.emit([String]()) { "no ejectable volumes" }; return }
             Out.confirm("Eject \(vs.count) volumes: \(vs.joined(separator: ", "))?", yes: yes)
             var ok: [String] = [], failed: [String] = []
             for v in vs {
                 if Shell.run("/usr/sbin/diskutil", ["eject", "/Volumes/\(v)"]).status == 0 { ok.append(v) } else { failed.append(v) }
             }
-            Out.emit(["ejected": ok, "failed": failed] as [String: [String]]) {
+            Out.emit(["ejected": ok, "failed": failed, "skipped": skipped] as [String: [String]]) {
                 "ejected \(ok.count)" + (failed.isEmpty ? "" : " — failed: \(failed.joined(separator: ", "))")
             }
         }
