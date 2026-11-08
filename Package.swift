@@ -21,8 +21,6 @@ let package = Package(
                 .linkedFramework("Vision"),
             ]
         ),
-        // XCTest needs full Xcode — Command Line Tools can't build test targets.
-        // Re-enable when Xcode is installed:
-        // .testTarget(name: "vorssaintTests", dependencies: ["vorssaint"], path: "Tests"),
+        .testTarget(name: "vorssaintTests", dependencies: ["vorssaint"], path: "Tests"),
     ]
 )

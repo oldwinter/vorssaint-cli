@@ -35,7 +35,10 @@ struct URLGroup: ParsableCommand {
         ]
 
         static func clean(_ raw: String) -> String {
-            guard var c = URLComponents(string: raw) else { return raw }
+            // Pass non-URL input through unchanged: URLComponents would
+            // otherwise percent-encode e.g. "not a url" into "not%20a%20url".
+            guard var c = URLComponents(string: raw),
+                  c.scheme != nil || c.query != nil else { return raw }
             let items = (c.queryItems ?? []).filter { item in
                 let n = item.name.lowercased()
                 if n.hasPrefix("utm_") || n.hasPrefix("ref_") || n.hasPrefix("fb_") && n != "fb_source" { return false }
