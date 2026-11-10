@@ -1,0 +1,31 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 74 and seed 1 with 1 worker on 12 cores with 5461MB heap and 64MB offheap memory [pid: 1510] (Mac OS X 27.2 aarch64, Eclipse Adoptium 25.0.5 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /private/var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/vorssaint-formal-1ijppi3x/CameraCapture-mutation/CameraCapture.tla
+Semantic processing of module CameraCapture
+Starting... (2026-11-11 02:23:44)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-11 02:23:44.
+Error: Invariant StopsOnSuccess is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+s = [phase |-> "ready", running |-> FALSE, saved |-> FALSE]
+
+State 2: <Allow line 6, col 10 to line 6, col 71 of module CameraCapture>
+s = [phase |-> "configured", running |-> FALSE, saved |-> FALSE]
+
+State 3: <Start line 8, col 10 to line 9, col 65 of module CameraCapture>
+s = [phase |-> "waiting", running |-> TRUE, saved |-> FALSE]
+
+State 4: <ReceiveFrame line 10, col 17 to line 10, col 78 of module CameraCapture>
+s = [phase |-> "encoding", running |-> TRUE, saved |-> FALSE]
+
+State 5: <Save line 14, col 9 to line 15, col 64 of module CameraCapture>
+s = [phase |-> "returning", running |-> TRUE, saved |-> TRUE]
+
+State 6: <ReturnAndDefer line 16, col 19 to line 17, col 75 of module CameraCapture>
+s = [phase |-> "done", running |-> TRUE, saved |-> TRUE]
+
+11 states generated, 8 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 6.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 2 and the 95th percentile is 2).
+Finished in 00s at (2026-11-11 02:23:44)

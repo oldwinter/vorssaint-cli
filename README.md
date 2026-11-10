@@ -169,6 +169,22 @@ titles), Accessibility (future window layout), Full Disk Access (future
 cleaner), Automation (appearance), Camera (camera shot), SMC (fans). Optional
 tools: brew, blueutil, ffmpeg, mas, ddcctl/m1ddc.
 
+## Check the state machines
+
+Eight project skills under [`.agents/skills/`](.agents/skills/) cover screen
+recording, camera capture, file operations, DMG installation, fan control,
+keep-awake, usage indexing, and terminal sessions.
+
+```sh
+python3 formal/check.py --mutations
+```
+
+The checks use bounded TLA+ models and isolated Swift source replays.
+The command exits `1` while recorded violations remain. Read the
+[findings and Mermaid flows](formal/REPORT.md), open the
+[interactive flow viewer](formal/results/flows.html), or see the
+[setup and scope](formal/README.md).
+
 ## License
 
 GPL-3.0-or-later, matching the original Vorssaint project.

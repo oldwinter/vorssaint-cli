@@ -1,0 +1,196 @@
+{
+  "date": "2026-11-11",
+  "sync_commit": "d91fec94f4641afd646336f1ce128620676c4999",
+  "subsystems": {
+    "screen-recording": {
+      "replay": {
+        "baseline": "replayed",
+        "mutation": "caught"
+      },
+      "checks": {
+        "ScreenRecording.TypeOK": {
+          "status": "pass"
+        },
+        "ScreenRecording.FailureStopsFrames": {
+          "status": "pass"
+        },
+        "ScreenRecording.NoAppendAfterFinish": {
+          "status": "finding",
+          "log": "screen-recording/tlc-NoAppendAfterFinish.out"
+        }
+      },
+      "model_mutation": {
+        "rule": "FailureStopsFrames",
+        "status": "detected",
+        "log": "screen-recording/tlc-mutation.out"
+      }
+    },
+    "camera-capture": {
+      "replay": {
+        "baseline": "replayed",
+        "mutation": "caught"
+      },
+      "checks": {
+        "CameraCapture.TypeOK": {
+          "status": "pass"
+        },
+        "CameraCapture.StopsOnSuccess": {
+          "status": "pass"
+        },
+        "CameraCapture.ExplicitStopOnError": {
+          "status": "finding",
+          "log": "camera-capture/tlc-ExplicitStopOnError.out"
+        }
+      },
+      "model_mutation": {
+        "rule": "StopsOnSuccess",
+        "status": "detected",
+        "log": "camera-capture/tlc-mutation.out"
+      }
+    },
+    "file-operations": {
+      "replay": {
+        "baseline": "replayed",
+        "mutation": "caught"
+      },
+      "checks": {
+        "FileOperations.TypeOK": {
+          "status": "pass"
+        },
+        "FileOperations.AuthorizedWrites": {
+          "status": "pass"
+        },
+        "FileOperations.DryRunBypassesConfirmation": {
+          "status": "pass"
+        },
+        "FileOperations.AccountedOnce": {
+          "status": "pass"
+        }
+      },
+      "model_mutation": {
+        "rule": "DryRunBypassesConfirmation",
+        "status": "detected",
+        "log": "file-operations/tlc-mutation.out"
+      }
+    },
+    "dmg-install": {
+      "replay": {
+        "baseline": "replayed",
+        "mutation": "caught"
+      },
+      "checks": {
+        "DmgInstall.TypeOK": {
+          "status": "pass"
+        },
+        "DmgInstall.ConfirmedReplacement": {
+          "status": "pass"
+        },
+        "DmgInstall.ErrorUnmountsImage": {
+          "status": "finding",
+          "log": "dmg-install/tlc-ErrorUnmountsImage.out"
+        },
+        "DmgInstall.FailedReplacementKeepsOldApp": {
+          "status": "finding",
+          "log": "dmg-install/tlc-FailedReplacementKeepsOldApp.out"
+        },
+        "DmgInstall.CleanupReportIsTrue": {
+          "status": "finding",
+          "log": "dmg-install/tlc-CleanupReportIsTrue.out"
+        }
+      },
+      "model_mutation": {
+        "rule": "ConfirmedReplacement",
+        "status": "detected",
+        "log": "dmg-install/tlc-mutation.out"
+      }
+    },
+    "fan-control": {
+      "replay": {
+        "baseline": "replayed",
+        "mutation": "caught"
+      },
+      "checks": {
+        "FanControl.TypeOK": {
+          "status": "pass"
+        },
+        "FanControl.SuccessMatchesReadback": {
+          "status": "pass"
+        },
+        "FanControl.FailureRestoresAutomatic": {
+          "status": "finding",
+          "log": "fan-control/tlc-FailureRestoresAutomatic.out"
+        }
+      },
+      "model_mutation": {
+        "rule": "SuccessMatchesReadback",
+        "status": "detected",
+        "log": "fan-control/tlc-mutation.out"
+      }
+    },
+    "keep-awake": {
+      "replay": {
+        "baseline": "replayed",
+        "mutation": "caught"
+      },
+      "checks": {
+        "KeepAwake.TypeOK": {
+          "status": "pass"
+        },
+        "KeepAwake.ReleaseOnReturn": {
+          "status": "pass"
+        },
+        "KeepAwake.InterruptEventuallyReleases": {
+          "status": "finding",
+          "log": "keep-awake/tlc-InterruptEventuallyReleases.out"
+        }
+      },
+      "model_mutation": {
+        "rule": "ReleaseOnReturn",
+        "status": "detected",
+        "log": "keep-awake/tlc-mutation.out"
+      }
+    },
+    "usage-index": {
+      "replay": {
+        "baseline": "replayed",
+        "mutation": "caught"
+      },
+      "checks": {
+        "UsageIndex.TypeOK": {
+          "status": "pass"
+        },
+        "UsageIndex.PartialLineRetained": {
+          "status": "pass"
+        },
+        "UsageIndex.CumulativeUsageIsMaximum": {
+          "status": "finding",
+          "log": "usage-index/tlc-CumulativeUsageIsMaximum.out"
+        }
+      },
+      "model_mutation": {
+        "rule": "PartialLineRetained",
+        "status": "detected",
+        "log": "usage-index/tlc-mutation.out"
+      }
+    },
+    "terminal-session": {
+      "replay": {
+        "baseline": "replayed",
+        "mutation": "caught"
+      },
+      "checks": {
+        "TerminalSession.TypeOK": {
+          "status": "pass"
+        },
+        "TerminalSession.TerminalRestored": {
+          "status": "pass"
+        }
+      },
+      "model_mutation": {
+        "rule": "TerminalRestored",
+        "status": "detected",
+        "log": "terminal-session/tlc-mutation.out"
+      }
+    }
+  }
+}

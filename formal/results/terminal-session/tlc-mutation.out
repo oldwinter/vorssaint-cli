@@ -1,0 +1,55 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 32 and seed 1 with 1 worker on 12 cores with 5461MB heap and 64MB offheap memory [pid: 1697] (Mac OS X 27.2 aarch64, Eclipse Adoptium 25.0.5 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /private/var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/vorssaint-formal-1ijppi3x/TerminalSession-mutation/TerminalSession.tla
+Semantic processing of module TerminalSession
+Starting... (2026-11-11 02:24:08)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-11 02:24:08.
+Error: Invariant TerminalRestored is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+s = [ phase |-> "ready",
+  saved |-> FALSE,
+  raw |-> FALSE,
+  alternate |-> FALSE,
+  hidden |-> FALSE ]
+
+State 2: <SaveTermios line 9, col 16 to line 10, col 75 of module TerminalSession>
+s = [ phase |-> "snapshot",
+  saved |-> FALSE,
+  raw |-> FALSE,
+  alternate |-> FALSE,
+  hidden |-> FALSE ]
+
+State 3: <EnterRaw line 11, col 13 to line 11, col 84 of module TerminalSession>
+s = [ phase |-> "raw",
+  saved |-> FALSE,
+  raw |-> TRUE,
+  alternate |-> FALSE,
+  hidden |-> FALSE ]
+
+State 4: <ShowDashboard line 12, col 18 to line 13, col 91 of module TerminalSession>
+s = [ phase |-> "active",
+  saved |-> FALSE,
+  raw |-> TRUE,
+  alternate |-> TRUE,
+  hidden |-> TRUE ]
+
+State 5: <Quit line 14, col 9 to line 14, col 70 of module TerminalSession>
+s = [ phase |-> "restoring",
+  saved |-> FALSE,
+  raw |-> TRUE,
+  alternate |-> TRUE,
+  hidden |-> TRUE ]
+
+State 6: <Restore line 16, col 12 to line 20, col 69 of module TerminalSession>
+s = [ phase |-> "done",
+  saved |-> FALSE,
+  raw |-> TRUE,
+  alternate |-> TRUE,
+  hidden |-> TRUE ]
+
+9 states generated, 7 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 6.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 2 and the 95th percentile is 2).
+Finished in 00s at (2026-11-11 02:24:08)

@@ -1,0 +1,49 @@
+{
+  "baseline": {
+    "dry": [
+      0,
+      "would trash 2 entries (300)\n  a\n  b\n"
+    ],
+    "no": [
+      1,
+      "vorssaint: Move 2 entries (300) to Trash? \u2014 pass --yes to confirm (non-interactive).\n"
+    ],
+    "yes": [
+      0,
+      "trashed 1 entries (300) \u2014 1 failed (app running?)\nTRACE trash /scratch/a\nTRACE trash /scratch/b\n"
+    ]
+  },
+  "mutation": {
+    "old": "if dryRun {",
+    "new": "if false {",
+    "caught": true
+  },
+  "mutant": {
+    "dry": [
+      1,
+      "vorssaint: Move 2 entries (300) to Trash? \u2014 pass --yes to confirm (non-interactive).\n"
+    ],
+    "no": [
+      1,
+      "vorssaint: Move 2 entries (300) to Trash? \u2014 pass --yes to confirm (non-interactive).\n"
+    ],
+    "yes": [
+      0,
+      "trashed 1 entries (300) \u2014 1 failed (app running?)\nTRACE trash /scratch/a\nTRACE trash /scratch/b\n"
+    ]
+  },
+  "restored_baseline": {
+    "dry": [
+      0,
+      "would trash 2 entries (300)\n  a\n  b\n"
+    ],
+    "no": [
+      1,
+      "vorssaint: Move 2 entries (300) to Trash? \u2014 pass --yes to confirm (non-interactive).\n"
+    ],
+    "yes": [
+      0,
+      "trashed 1 entries (300) \u2014 1 failed (app running?)\nTRACE trash /scratch/a\nTRACE trash /scratch/b\n"
+    ]
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "baseline": {
+    "duration": [
+      0,
+      "awake finished (duration elapsed)\nTRACE assertion-acquired\nawake for 0.01 \u2014 system sleep prevented\nTRACE assertion-released\n"
+    ],
+    "interrupt": [
+      -9,
+      "TRACE assertion-acquired\nawake until interrupted (Ctrl-C) \u2014 system sleep prevented\n"
+    ]
+  },
+  "mutation": {
+    "old": "defer { IOPMAssertionRelease(assertion) }",
+    "new": "defer { }",
+    "caught": true
+  },
+  "mutant": {
+    "duration": [
+      0,
+      "awake finished (duration elapsed)\nTRACE assertion-acquired\nawake for 0.01 \u2014 system sleep prevented\n"
+    ],
+    "interrupt": [
+      -9,
+      "TRACE assertion-acquired\nawake until interrupted (Ctrl-C) \u2014 system sleep prevented\n"
+    ]
+  },
+  "restored_baseline": {
+    "duration": [
+      0,
+      "awake finished (duration elapsed)\nTRACE assertion-acquired\nawake for 0.01 \u2014 system sleep prevented\nTRACE assertion-released\n"
+    ],
+    "interrupt": [
+      -9,
+      "TRACE assertion-acquired\nawake until interrupted (Ctrl-C) \u2014 system sleep prevented\n"
+    ]
+  }
+}

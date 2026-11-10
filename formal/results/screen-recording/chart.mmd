@@ -1,0 +1,63 @@
+---
+title: "Record a screen video"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: active
+    lg1: success
+    lg2: bug
+    lg3: Breaks NoAppendAfterFinish
+    lg4: Path to the NoAppendAfterFinish bug
+  }
+  class lg0 blue
+  class lg1 teal
+  class lg2 pink
+  class lg3 breaks
+  class lg4 bugPath
+  s0: You choose a display and output
+  s1: Command reports an error
+  s2: Waiting for the first frame
+  s3: Capture failed#59; waiting to stop
+  s4: Recording frames
+  s5: Stopping capture
+  s6: Stop timed out#59; capture may still be live
+  s7: Capture stopped
+  s8: Writer finalized
+  s9: A late frame reaches the finished writer
+  s10: Video saved
+  [*] --> s0
+  s0 --> s1: screen permission denied
+  s0 --> s2: permission granted#59; capture starts
+  s2 --> s3: capture reports a failure
+  s2 --> s4: a frame arrives
+  s2 --> s5: duration ends or you press Ctrl-C
+  s3 --> s5: duration ends or you press Ctrl-C
+  s4 --> s3: capture reports a failure
+  s4 --> s5: duration ends or you press Ctrl-C
+  s5 --> s6: stop waits ten seconds and times out
+  s5 --> s7: capture confirms it stopped
+  s6 --> s8: the video writer finalizes
+  s7 --> s8: the video writer finalizes
+  s8 --> s1: the command checks frames and failure
+  s8 --> s9: an unacknowledged callback arrives [after a captured frame]
+  s8 --> s10: the command checks frames and failure
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  class s0 blue
+  class s0 bugPath
+  class s1 blue
+  class s2 blue
+  class s2 bugPath
+  class s3 blue
+  class s4 blue
+  class s4 bugPath
+  class s5 blue
+  class s5 bugPath
+  class s6 blue
+  class s6 bugPath
+  class s7 blue
+  class s8 blue
+  class s8 bugPath
+  class s9 pink
+  class s9 breaks
+  class s9 bugPath
+  class s10 teal

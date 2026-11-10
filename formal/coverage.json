@@ -1,0 +1,188 @@
+{
+  "sync_commit": "d91fec94f4641afd646336f1ce128620676c4999",
+  "review_date": "2026-11-11",
+  "tool": {
+    "name": "TLC",
+    "version": "1.7.4",
+    "sha256": "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
+  },
+  "subsystems": {
+    "screen-recording": {
+      "models": [
+        "ScreenRecording"
+      ],
+      "functions": [
+        "ScreenRecorder.run",
+        "ScreenRecorder.stopCapture",
+        "ScreenRecorder.finishWriting",
+        "ScreenRecorder.stream(didOutputSampleBuffer:)",
+        "ScreenRecorder.stream(didStopWithError:)"
+      ],
+      "findings": [
+        "NoAppendAfterFinish"
+      ],
+      "promise": "Once capture reports a failure, later frame callbacks append no more frames.",
+      "harm": "An unacknowledged stop can let a callback reach a finalized video writer.",
+      "scope": "One stream, one accepted frame, one stream failure, and one late callback; acknowledgement and timeout are distinct. The replay runs actual callback, stop and finish methods with fake framework objects. It does not record a real display or prove ScreenCaptureKit callback timing.",
+      "mutation": "Remove the callback failure guard; a failed stream must then append a frame.",
+      "mutation_rule": "FailureStopsFrames",
+      "source_hashes": {
+        "Sources/vorssaint/Core/ScreenRecorder.swift": "6f9cfd4ac75a47c74be41dd05919ccaf39fdae6dfc78cf6d4eeeab8207c1d33a",
+        "Sources/vorssaint/Commands/Record.swift": "f36830beb708ad7e7b1b04a0f9918c6768803fd0d7e2e780697dcc38d92ca057",
+        "Sources/vorssaint/Core/Output.swift": "6151f75c3af4ae3a7991e425445f3f048e3b34cfc5bf21381a3bddd75e7fa1d9"
+      }
+    },
+    "camera-capture": {
+      "models": [
+        "CameraCapture"
+      ],
+      "functions": [
+        "Camera.Shot.run: startRunning through firstFrame timeout",
+        "Out.fail"
+      ],
+      "findings": [
+        "ExplicitStopOnError"
+      ],
+      "promise": "A successful camera command explicitly stops its capture session before returning.",
+      "harm": "An error exits before the deferred explicit stop; resource reclamation is left to process teardown.",
+      "scope": "One session, one frame, permission denial, frame timeout and encoding/write failure. The replay extracts the actual start/defer/first-frame block; conversion and disk-write failures share the same Out.fail abstraction but are not individually injected. OS cleanup on process exit is outside the explicit-cleanup invariant.",
+      "mutation": "Remove the deferred session stop; a successful capture must lose its stop event.",
+      "mutation_rule": "StopsOnSuccess",
+      "source_hashes": {
+        "Sources/vorssaint/Commands/Camera.swift": "ab4e0c5bd050ba1183cf1bd06bd9b2981ec46bc0630517fd589a22eab727673d",
+        "Sources/vorssaint/Core/Output.swift": "6151f75c3af4ae3a7991e425445f3f048e3b34cfc5bf21381a3bddd75e7fa1d9"
+      }
+    },
+    "file-operations": {
+      "models": [
+        "FileOperations"
+      ],
+      "functions": [
+        "Clean.Run.run",
+        "Out.confirm",
+        "Out.fail"
+      ],
+      "findings": [],
+      "promise": "Dry-run exits with a preview, and file moves require confirmation; every planned item is accounted for once.",
+      "harm": "A preview that enters the confirmation or mutation branch can mislead an agent or touch user files.",
+      "scope": "Two selected cache entries with independent success/failure. The replay executes the actual cleaner body with a fake filesystem and real output/confirmation logic. Target discovery, app-uninstall matching, Downloads collisions, permanent Trash emptying, settings import and concurrent filesystem replacement are excluded.",
+      "mutation": "Bypass the dry-run branch; preview must incorrectly request noninteractive confirmation.",
+      "mutation_rule": "DryRunBypassesConfirmation",
+      "source_hashes": {
+        "Sources/vorssaint/Commands/Clean.swift": "69c6189d0a1dfeb0fc7802ded5559791edd520d53377e90cc662378ae19ecc3a",
+        "Sources/vorssaint/Core/Output.swift": "6151f75c3af4ae3a7991e425445f3f048e3b34cfc5bf21381a3bddd75e7fa1d9"
+      }
+    },
+    "dmg-install": {
+      "models": [
+        "DmgInstall"
+      ],
+      "functions": [
+        "Dmg.Install.run",
+        "Out.confirm",
+        "Out.fail"
+      ],
+      "findings": [
+        "ErrorUnmountsImage",
+        "FailedReplacementKeepsOldApp",
+        "CleanupReportIsTrue"
+      ],
+      "promise": "Replacing an existing application requires explicit approval.",
+      "harm": "A copy failure can remove the previous app and bypass image ejection; failed input cleanup can still be reported as successful.",
+      "scope": "One existing app and one image; mount, find-app, confirmation, removal, copy, cleanup and detach are separate steps. The actual command body runs against fake filesystem and process dependencies. No disk image is mounted; subprocess internals, crash recovery and concurrent installs are excluded. Detach failure is represented but no unconditional successful-detach guarantee is asserted.",
+      "mutation": "Force confirmation to yes; an unapproved command must delete the fake destination.",
+      "mutation_rule": "ConfirmedReplacement",
+      "source_hashes": {
+        "Sources/vorssaint/Commands/Dmg.swift": "45837f878147667052d6d1bf13a3aeb110a28f449c0e931678c87d242d09411d",
+        "Sources/vorssaint/Core/Output.swift": "6151f75c3af4ae3a7991e425445f3f048e3b34cfc5bf21381a3bddd75e7fa1d9"
+      }
+    },
+    "fan-control": {
+      "models": [
+        "FanControl"
+      ],
+      "functions": [
+        "Fans.Set.run",
+        "Fans.setForcedBit",
+        "SMC.writeNumber (abstract boundary)",
+        "Out.confirm"
+      ],
+      "findings": [
+        "FailureRestoresAutomatic"
+      ],
+      "promise": "A successful manual target write must have matching readback within two RPM.",
+      "harm": "The manual-control bit can remain set after a later target write or readback fails.",
+      "scope": "One valid fan, a validated in-range RPM, optional forced-bit support, and accepted/rejected/mismatching firmware responses. Actual Set.run executes against fake SMC dependencies. Physical cooling, SMC encoding, range arithmetic, concurrent commands, fans auto and audio routing are excluded.",
+      "mutation": "Remove the readback tolerance guard; ignored writes must incorrectly report success.",
+      "mutation_rule": "SuccessMatchesReadback",
+      "source_hashes": {
+        "Sources/vorssaint/Commands/Fans.swift": "84d818a0e31efc94e37091b2eeb5580028a70e7c0eaa34d3286d1d1e4e7aac92",
+        "Sources/vorssaint/Core/Output.swift": "6151f75c3af4ae3a7991e425445f3f048e3b34cfc5bf21381a3bddd75e7fa1d9"
+      }
+    },
+    "keep-awake": {
+      "models": [
+        "KeepAwake"
+      ],
+      "functions": [
+        "Awake.run"
+      ],
+      "findings": [
+        "InterruptEventuallyReleases"
+      ],
+      "promise": "Normal completion releases the acquired sleep-prevention assertion.",
+      "harm": "Ctrl-C can remain queued on the main dispatch queue while the synchronous main thread sleeps indefinitely.",
+      "scope": "One assertion; duration/PID completion and indefinite SIGINT waiting. The actual run body uses fake IOPM calls, real signal dispatch and Thread.sleep; the child is killed after SIGINT fails to complete. No real power assertion is acquired. PID reuse, EPERM, wall-clock jumps and SIGTERM are excluded.",
+      "mutation": "Remove the deferred assertion release; normal timed completion must retain it.",
+      "mutation_rule": "ReleaseOnReturn",
+      "source_hashes": {
+        "Sources/vorssaint/Commands/Awake.swift": "f5c84b9bb56542da3cf7d04a340f1c1743ee6afdb3e15bc14e456cedfd9a9d36",
+        "Sources/vorssaint/Core/Output.swift": "6151f75c3af4ae3a7991e425445f3f048e3b34cfc5bf21381a3bddd75e7fa1d9"
+      }
+    },
+    "usage-index": {
+      "models": [
+        "UsageIndex"
+      ],
+      "functions": [
+        "Agents.scanFile",
+        "Agents.coveredBytes",
+        "Agents.readTail",
+        "Agents.codexTokens",
+        "Agents.claudeTokens"
+      ],
+      "findings": [
+        "CumulativeUsageIsMaximum"
+      ],
+      "promise": "A partial transcript line remains available for parsing after it is completed.",
+      "harm": "Incremental Codex scans add cumulative totals and overstate usage: 10 followed by 15 becomes 25.",
+      "scope": "One file, two usage records, unchanged reuse, a partial-line completion and full reindex. Values 1/2 in the model represent 10/15 in the real source replay. Arithmetic and parsing execute on actual source over scratch JSONL fixtures. Same-size rewrites, cross-process index writes, budget edges, malformed JSON and today-by-mtime semantics are excluded.",
+      "mutation": "Resume an append at the old file size instead of parsedBytes; the partial last line must be lost.",
+      "mutation_rule": "PartialLineRetained",
+      "source_hashes": {
+        "Sources/vorssaint/Commands/Agents.swift": "83b1956a1206974dc72a6248008668db3659c92d570c6d438ad28e27a5bc4a99",
+        "Sources/vorssaint/Core/Output.swift": "6151f75c3af4ae3a7991e425445f3f048e3b34cfc5bf21381a3bddd75e7fa1d9"
+      }
+    },
+    "terminal-session": {
+      "models": [
+        "TerminalSession"
+      ],
+      "functions": [
+        "TUI.runInteractive",
+        "TUI.restoreTerminal",
+        "TUI.installFailsafe"
+      ],
+      "findings": [],
+      "promise": "After a normal quit or handled fatal signal from the active dashboard, terminal settings and cursor visibility are restored.",
+      "harm": "A failed restore leaves the shell in raw input or hides its cursor.",
+      "scope": "One terminal session: piped output, saved settings, raw mode, alternate screen, normal quit, handled fatal signal, idempotent cleanup. The complete TUI enum is compiled from source and tested on real pseudo-terminals with q and SIGTERM; all termios fields and the cursor/alternate-screen restore sequence are compared. SIGKILL, startup signals before failsafe registration, resize and Unicode input are excluded.",
+      "mutation": "Lose the saved-termios flag; q and SIGTERM must fail restoration.",
+      "mutation_rule": "TerminalRestored",
+      "source_hashes": {
+        "Sources/vorssaint/TUI/TUI.swift": "7e438c5a922c5111918cbb0226e9e2c0b54bb72489fbbbb702f97930868e5fbd",
+        "Sources/vorssaint/Core/Output.swift": "6151f75c3af4ae3a7991e425445f3f048e3b34cfc5bf21381a3bddd75e7fa1d9"
+      }
+    }
+  }
+}

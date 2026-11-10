@@ -1,0 +1,27 @@
+---
+title: "Read and refresh local agent usage"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: Breaks CumulativeUsageIsMaximum
+    lg1: Path to the CumulativeUsageIsMaximum bug
+  }
+  class lg0 breaks
+  class lg1 bugPath
+  s0: No cached usage for this transcript
+  s1: First complete usage record cached
+  s2: Appended cumulative usage is counted twice
+  s3: Incomplete last line retained for next scan
+  s4: Completed line counted once
+  s5: Full reindex restores the correct maximum
+  [*] --> s0
+  s0 --> s1: read the first complete record
+  s1 --> s2: tail-parse a new cumulative Codex record
+  s1 --> s3: a transcript ends partway through a line
+  s2 --> s5: you pass --reindex
+  s3 --> s4: the writer completes that line
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  class s0 bugPath
+  class s1 bugPath
+  class s2 breaks
+  class s2 bugPath

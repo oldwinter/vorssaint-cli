@@ -1,0 +1,25 @@
+{
+  "baseline": {
+    "index": [
+      0,
+      "codex first=10 appended=25 unchanged=25\ncodex reindexed=15\nclaude partial=7 completed=16\n"
+    ]
+  },
+  "mutation": {
+    "old": "offset = e.parsedBytes",
+    "new": "offset = e.size",
+    "caught": true
+  },
+  "mutant": {
+    "index": [
+      0,
+      "codex first=10 appended=25 unchanged=25\ncodex reindexed=15\nclaude partial=7 completed=7\n"
+    ]
+  },
+  "restored_baseline": {
+    "index": [
+      0,
+      "codex first=10 appended=25 unchanged=25\ncodex reindexed=15\nclaude partial=7 completed=16\n"
+    ]
+  }
+}

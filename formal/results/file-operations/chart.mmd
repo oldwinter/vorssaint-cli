@@ -1,0 +1,34 @@
+---
+title: "Preview and apply file operations"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: complete
+    lg1: active
+  }
+  class lg0 teal
+  class lg1 blue
+  s0: Items selected for removal
+  s1: You request a dry run
+  s2: Waiting for confirmation
+  s3: Preview shown#59; files unchanged
+  s4: Cancelled#59; files unchanged
+  s5: Moving selected items to Trash
+  s6: All selected items moved
+  s7: Partial result with failures
+  [*] --> s0
+  [*] --> s1
+  s0 --> s2: request approval
+  s1 --> s3: show the dry-run plan
+  s2 --> s4: you decline or no interactive input is available
+  s2 --> s5: you pass --yes or approve in a terminal
+  s5 --> s6: report successful and failed items
+  s5 --> s7: report successful and failed items
+  class s0 blue
+  class s1 blue
+  class s2 blue
+  class s3 teal
+  class s4 blue
+  class s5 blue
+  class s6 teal
+  class s7 teal

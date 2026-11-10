@@ -1,0 +1,17 @@
+---
+title: "Enter and leave the terminal dashboard"
+---
+stateDiagram-v2
+  s0: You open the dashboard or app switcher
+  s1: Your terminal is usable again
+  s2: Original terminal settings saved
+  s3: Keyboard input in raw mode
+  s4: Dashboard visible#59; cursor hidden
+  s5: Restoring terminal settings and cursor
+  [*] --> s0
+  s0 --> s1: output is piped#59; print one frame
+  s0 --> s2: save the terminal settings
+  s2 --> s3: enable raw keyboard input
+  s3 --> s4: enter the alternate screen
+  s4 --> s5: a handled fatal signal interrupts the app or you press q, Escape, or keyboard Ctrl-C
+  s5 --> s1: restore the saved terminal and cursor

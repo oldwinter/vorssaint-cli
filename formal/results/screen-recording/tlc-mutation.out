@@ -1,0 +1,47 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 23 and seed 1 with 1 worker on 12 cores with 5461MB heap and 64MB offheap memory [pid: 3384] (Mac OS X 27.2 aarch64, Eclipse Adoptium 25.0.5 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /private/var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/vorssaint-formal-jytyydl6/ScreenRecording-mutation/ScreenRecording.tla
+Parsing file /private/var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/Naturals.tla
+Semantic processing of module Naturals
+Semantic processing of module ScreenRecording
+Starting... (2026-11-11 02:28:51)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-11 02:28:51.
+Error: Invariant FailureStopsFrames is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+s = [ phase |-> "ready",
+  frames |-> 0,
+  failed |-> FALSE,
+  atFailure |-> 0,
+  stopped |-> FALSE,
+  lateAppend |-> FALSE ]
+
+State 2: <Start line 10, col 10 to line 11, col 49 of module ScreenRecording>
+s = [ phase |-> "recording",
+  frames |-> 0,
+  failed |-> FALSE,
+  atFailure |-> 0,
+  stopped |-> FALSE,
+  lateAppend |-> FALSE ]
+
+State 3: <StreamError line 17, col 16 to line 18, col 73 of module ScreenRecording>
+s = [ phase |-> "recording",
+  frames |-> 0,
+  failed |-> TRUE,
+  atFailure |-> 0,
+  stopped |-> FALSE,
+  lateAppend |-> FALSE ]
+
+State 4: <Frame line 14, col 10 to line 16, col 40 of module ScreenRecording>
+s = [ phase |-> "recording",
+  frames |-> 1,
+  failed |-> TRUE,
+  atFailure |-> 0,
+  stopped |-> FALSE,
+  lateAppend |-> FALSE ]
+
+11 states generated, 9 distinct states found, 3 states left on queue.
+The depth of the complete state graph search is 4.
+The average outdegree of the complete state graph is 2 (minimum is 0, the maximum 3 and the 95th percentile is 3).
+Finished in 00s at (2026-11-11 02:28:51)
