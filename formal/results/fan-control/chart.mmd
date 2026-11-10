@@ -1,0 +1,36 @@
+---
+title: "Set and verify a fan target"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: Breaks FailureRestoresAutomatic
+    lg1: Path to the FailureRestoresAutomatic bug
+  }
+  class lg0 breaks
+  class lg1 bugPath
+  s0: You choose an in-range target
+  s1: You approve the hardware write
+  s2: Write refused or unsupported
+  s3: Forced-bit support unavailable
+  s4: Manual mode enabled
+  s5: Error reported#59; manual mode remains set
+  s6: Target written#59; verifying readback
+  s7: Matching target confirmed
+  [*] --> s0
+  s0 --> s1: you approve
+  s0 --> s2: you decline or --yes is missing without a terminal
+  s1 --> s3: the forced bit is unsupported
+  s1 --> s4: set the manual-control bit
+  s3 --> s2: the target cannot be written
+  s3 --> s6: the driver accepts the target
+  s4 --> s5: the target cannot be written
+  s4 --> s6: the driver accepts the target
+  s6 --> s7: readback matches within two RPM
+  s6 --> s2: firmware reports a different target or readback fails
+  s6 --> s5: firmware reports a different target or readback fails
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  class s0 bugPath
+  class s1 bugPath
+  class s4 bugPath
+  class s5 breaks
+  class s5 bugPath

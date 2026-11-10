@@ -1,0 +1,37 @@
+{
+  "baseline": {
+    "late-frame": [
+      0,
+      "frame-appended\ninput-finished\nfinish-requested\nappend-after-finish\n"
+    ],
+    "failure-guard": [
+      0,
+      "frames=0\n"
+    ]
+  },
+  "mutation": {
+    "old": "if failure != nil { return }",
+    "new": "if false { return }",
+    "caught": true
+  },
+  "mutant": {
+    "late-frame": [
+      0,
+      "frame-appended\ninput-finished\nfinish-requested\nappend-after-finish\n"
+    ],
+    "failure-guard": [
+      0,
+      "frame-appended\nframes=1\n"
+    ]
+  },
+  "restored_baseline": {
+    "late-frame": [
+      0,
+      "frame-appended\ninput-finished\nfinish-requested\nappend-after-finish\n"
+    ],
+    "failure-guard": [
+      0,
+      "frames=0\n"
+    ]
+  }
+}

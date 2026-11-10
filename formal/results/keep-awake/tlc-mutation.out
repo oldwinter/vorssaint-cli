@@ -1,0 +1,26 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 115 and seed 1 with 1 worker on 12 cores with 5461MB heap and 64MB offheap memory [pid: 1633] (Mac OS X 27.2 aarch64, Eclipse Adoptium 25.0.5 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /private/var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/vorssaint-formal-1ijppi3x/KeepAwake-mutation/KeepAwake.tla
+Semantic processing of module KeepAwake
+Starting... (2026-11-11 02:24:01)
+Computing initial states...
+Computed 2 initial states...
+Finished computing initial states: 3 distinct states generated at 2026-11-11 02:24:01.
+Error: Invariant ReleaseOnReturn is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+s = [mode |-> "duration", phase |-> "ready", held |-> FALSE, interrupt |-> FALSE]
+
+State 2: <Acquire line 9, col 12 to line 10, col 62 of module KeepAwake>
+s = [mode |-> "duration", phase |-> "awake", held |-> TRUE, interrupt |-> FALSE]
+
+State 3: <DurationExpires line 11, col 20 to line 12, col 59 of module KeepAwake>
+s = [mode |-> "duration", phase |-> "returning", held |-> TRUE, interrupt |-> FALSE]
+
+State 4: <ReturnAndRelease line 19, col 21 to line 20, col 74 of module KeepAwake>
+s = [mode |-> "duration", phase |-> "done", held |-> TRUE, interrupt |-> FALSE]
+
+18 states generated, 15 distinct states found, 4 states left on queue.
+The depth of the complete state graph search is 4.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 2 and the 95th percentile is 2).
+Finished in 00s at (2026-11-11 02:24:01)

@@ -1,0 +1,19 @@
+{
+  "baseline": {
+    "quit": true,
+    "sigterm": true
+  },
+  "mutation": {
+    "old": "termiosSaved = true",
+    "new": "termiosSaved = false",
+    "caught": true
+  },
+  "mutant": {
+    "quit": false,
+    "sigterm": false
+  },
+  "restored_baseline": {
+    "quit": true,
+    "sigterm": true
+  }
+}

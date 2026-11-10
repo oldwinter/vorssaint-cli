@@ -1,0 +1,35 @@
+---
+title: "Keep the Mac awake until work finishes"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: Path to the InterruptEventuallyReleases bug
+    lg1: Repeats forever, so InterruptEventuallyReleases breaks
+  }
+  class lg0 bugPath
+  class lg1 repeats
+  s0: You start keep-awake
+  s1: Sleep prevention active until the deadline
+  s2: Command finished#59; assertion released
+  s3: Sleep prevention active until Ctrl-C
+  s4: Sleep prevention active while the PID is alive
+  s5: Ctrl-C queued#59; deadline still applies
+  s6: Duration ended or watched process disappeared
+  s7: Ctrl-C queued#59; indefinite assertion remains active
+  s8: Ctrl-C queued#59; watched PID still applies
+  [*] --> s0
+  s0 --> s1: macOS grants the assertion
+  s0 --> s2: macOS rejects the assertion
+  s0 --> s3: macOS grants the assertion
+  s0 --> s4: macOS grants the assertion
+  s1 --> s5: you press Ctrl-C
+  s1 --> s6: the requested duration ends
+  s3 --> s7: you press Ctrl-C
+  s4 --> s8: you press Ctrl-C
+  s4 --> s6: the watched PID disappears
+  s5 --> s6: the requested duration ends
+  s6 --> s2: normal return releases the assertion
+  s8 --> s6: the watched PID disappears
+  class s0 bugPath
+  class s3 bugPath
+  class s7 repeats

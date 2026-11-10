@@ -1,0 +1,53 @@
+---
+title: "Install or replace an app from a disk image"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: Breaks CleanupReportIsTrue or ErrorUnmountsImage or FailedReplacementKeepsOldApp
+    lg1: Path to the CleanupReportIsTrue or ErrorUnmountsImage or FailedReplacementKeepsOldApp bug
+  }
+  class lg0 breaks
+  class lg1 bugPath
+  s0: You choose a disk image
+  s1: Image could not be mounted
+  s2: Image mounted read-only
+  s3: Waiting for install approval
+  s4: Command exits with the image still mounted
+  s5: Approved#59; replacing the existing app
+  s6: Previous app deleted#59; copying the replacement
+  s7: New app copied
+  s8: Copy failed#59; previous app lost#59; image mounted
+  s9: Install reported#59; preparing to eject
+  s10: Reports image removed#59; original image remains mounted
+  s11: App installed#59; image ejected
+  s12: Reports image removed#59; original image still exists
+  s13: Install reported#59; detach failed
+  [*] --> s0
+  s0 --> s1: mount fails
+  s0 --> s2: mount the image
+  s2 --> s3: an app is found
+  s2 --> s4: the image contains no app
+  s3 --> s4: you decline or --yes is missing without a terminal
+  s3 --> s5: you approve the installation
+  s5 --> s6: delete the old app
+  s6 --> s7: copy the replacement
+  s6 --> s8: copying the replacement fails
+  s7 --> s9: delete the input image or keep the input image
+  s7 --> s10: input-image deletion fails silently
+  s9 --> s11: normal return ejects the image
+  s9 --> s13: eject fails silently
+  s10 --> s12: normal return ejects the image
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  class s0 bugPath
+  class s2 bugPath
+  class s3 bugPath
+  class s4 breaks
+  class s4 bugPath
+  class s5 bugPath
+  class s6 bugPath
+  class s7 bugPath
+  class s8 breaks
+  class s8 bugPath
+  class s10 breaks
+  class s10 bugPath
+  class s12 breaks

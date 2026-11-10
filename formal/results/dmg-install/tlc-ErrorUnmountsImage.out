@@ -1,0 +1,40 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 22 and seed 1 with 1 worker on 12 cores with 5461MB heap and 64MB offheap memory [pid: 1564] (Mac OS X 27.2 aarch64, Eclipse Adoptium 25.0.5 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /private/var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/vorssaint-formal-1ijppi3x/DmgInstall-ErrorUnmountsImage/DmgInstall.tla
+Semantic processing of module DmgInstall
+Starting... (2026-11-11 02:23:50)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-11 02:23:50.
+Error: Invariant ErrorUnmountsImage is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+s = [ phase |-> "ready",
+  mounted |-> FALSE,
+  confirmed |-> FALSE,
+  oldApp |-> TRUE,
+  copied |-> FALSE,
+  source |-> TRUE,
+  reportedRemoved |-> FALSE ]
+
+State 2: <Mount line 9, col 10 to line 9, col 86 of module DmgInstall>
+s = [ phase |-> "mounted",
+  mounted |-> TRUE,
+  confirmed |-> FALSE,
+  oldApp |-> TRUE,
+  copied |-> FALSE,
+  source |-> TRUE,
+  reportedRemoved |-> FALSE ]
+
+State 3: <NoApp line 10, col 10 to line 10, col 68 of module DmgInstall>
+s = [ phase |-> "error",
+  mounted |-> TRUE,
+  confirmed |-> FALSE,
+  oldApp |-> TRUE,
+  copied |-> FALSE,
+  source |-> TRUE,
+  reportedRemoved |-> FALSE ]
+
+5 states generated, 4 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 3.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 2 and the 95th percentile is 2).
+Finished in 00s at (2026-11-11 02:23:50)

@@ -1,0 +1,76 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 24 and seed 1 with 1 worker on 12 cores with 5461MB heap and 64MB offheap memory [pid: 1570] (Mac OS X 27.2 aarch64, Eclipse Adoptium 25.0.5 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /private/var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/vorssaint-formal-1ijppi3x/DmgInstall-CleanupReportIsTrue/DmgInstall.tla
+Semantic processing of module DmgInstall
+Starting... (2026-11-11 02:23:51)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-11 02:23:51.
+Error: Invariant CleanupReportIsTrue is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+s = [ phase |-> "ready",
+  mounted |-> FALSE,
+  confirmed |-> FALSE,
+  oldApp |-> TRUE,
+  copied |-> FALSE,
+  source |-> TRUE,
+  reportedRemoved |-> FALSE ]
+
+State 2: <Mount line 9, col 10 to line 9, col 86 of module DmgInstall>
+s = [ phase |-> "mounted",
+  mounted |-> TRUE,
+  confirmed |-> FALSE,
+  oldApp |-> TRUE,
+  copied |-> FALSE,
+  source |-> TRUE,
+  reportedRemoved |-> FALSE ]
+
+State 3: <FindApp line 11, col 12 to line 11, col 75 of module DmgInstall>
+s = [ phase |-> "confirming",
+  mounted |-> TRUE,
+  confirmed |-> FALSE,
+  oldApp |-> TRUE,
+  copied |-> FALSE,
+  source |-> TRUE,
+  reportedRemoved |-> FALSE ]
+
+State 4: <Confirm line 13, col 12 to line 14, col 76 of module DmgInstall>
+s = [ phase |-> "replacing",
+  mounted |-> TRUE,
+  confirmed |-> TRUE,
+  oldApp |-> TRUE,
+  copied |-> FALSE,
+  source |-> TRUE,
+  reportedRemoved |-> FALSE ]
+
+State 5: <RemoveOld line 15, col 14 to line 16, col 69 of module DmgInstall>
+s = [ phase |-> "copying",
+  mounted |-> TRUE,
+  confirmed |-> TRUE,
+  oldApp |-> FALSE,
+  copied |-> FALSE,
+  source |-> TRUE,
+  reportedRemoved |-> FALSE ]
+
+State 6: <Copy line 18, col 9 to line 19, col 62 of module DmgInstall>
+s = [ phase |-> "copied",
+  mounted |-> TRUE,
+  confirmed |-> TRUE,
+  oldApp |-> FALSE,
+  copied |-> TRUE,
+  source |-> TRUE,
+  reportedRemoved |-> FALSE ]
+
+State 7: <CleanupFails line 23, col 17 to line 24, col 82 of module DmgInstall>
+s = [ phase |-> "returning",
+  mounted |-> TRUE,
+  confirmed |-> TRUE,
+  oldApp |-> FALSE,
+  copied |-> TRUE,
+  source |-> TRUE,
+  reportedRemoved |-> TRUE ]
+
+16 states generated, 12 distinct states found, 2 states left on queue.
+The depth of the complete state graph search is 7.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 2 and the 95th percentile is 2).
+Finished in 00s at (2026-11-11 02:23:51)

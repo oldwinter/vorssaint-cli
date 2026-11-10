@@ -1,0 +1,48 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 107 and seed 1 with 1 worker on 12 cores with 5461MB heap and 64MB offheap memory [pid: 1598] (Mac OS X 27.2 aarch64, Eclipse Adoptium 25.0.5 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /private/var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/vorssaint-formal-1ijppi3x/FanControl-mutation/FanControl.tla
+Semantic processing of module FanControl
+Starting... (2026-11-11 02:23:55)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-11 02:23:55.
+Error: Invariant SuccessMatchesReadback is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+s = [ phase |-> "ready",
+  forced |-> FALSE,
+  accepted |-> FALSE,
+  matches |-> FALSE,
+  success |-> FALSE ]
+
+State 2: <Confirm line 9, col 12 to line 9, col 72 of module FanControl>
+s = [ phase |-> "confirmed",
+  forced |-> FALSE,
+  accepted |-> FALSE,
+  matches |-> FALSE,
+  success |-> FALSE ]
+
+State 3: <ForceMode line 10, col 14 to line 11, col 67 of module FanControl>
+s = [ phase |-> "forced",
+  forced |-> TRUE,
+  accepted |-> FALSE,
+  matches |-> FALSE,
+  success |-> FALSE ]
+
+State 4: <WriteAccepted line 14, col 18 to line 15, col 75 of module FanControl>
+s = [ phase |-> "readback",
+  forced |-> TRUE,
+  accepted |-> TRUE,
+  matches |-> FALSE,
+  success |-> FALSE ]
+
+State 5: <ReadMismatch line 19, col 17 to line 21, col 55 of module FanControl>
+s = [ phase |-> "done",
+  forced |-> TRUE,
+  accepted |-> TRUE,
+  matches |-> FALSE,
+  success |-> TRUE ]
+
+14 states generated, 11 distinct states found, 3 states left on queue.
+The depth of the complete state graph search is 5.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 2 and the 95th percentile is 2).
+Finished in 00s at (2026-11-11 02:23:55)

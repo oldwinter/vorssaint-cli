@@ -1,0 +1,61 @@
+{
+  "baseline": {
+    "unconfirmed": [
+      1,
+      "vorssaint: Set fan 0 target to 3000 rpm? \u2014 pass --yes to confirm (non-interactive).\n"
+    ],
+    "write-fails": [
+      3,
+      "TRACE forced-on\nTRACE target-write\nvorssaint: SMC key F0Tg is not writable on this Mac \u2014 manual fan control is often unavailable on Apple Silicon\n"
+    ],
+    "ignored": [
+      3,
+      "TRACE forced-on\nTRACE target-write\nvorssaint: SMC accepted 3000 rpm but reports 3500 rpm \u2014 firmware is managing this fan\n"
+    ],
+    "ok": [
+      0,
+      "fan 0 target \u2192 3000 rpm (now 3000, range 1000\u20136000)\nTRACE forced-on\nTRACE target-write\n"
+    ]
+  },
+  "mutation": {
+    "old": "guard abs(target - Double(rpm)) <= 2 else {",
+    "new": "guard true else {",
+    "caught": true
+  },
+  "mutant": {
+    "unconfirmed": [
+      1,
+      "vorssaint: Set fan 0 target to 3000 rpm? \u2014 pass --yes to confirm (non-interactive).\n"
+    ],
+    "write-fails": [
+      3,
+      "TRACE forced-on\nTRACE target-write\nvorssaint: SMC key F0Tg is not writable on this Mac \u2014 manual fan control is often unavailable on Apple Silicon\n"
+    ],
+    "ignored": [
+      0,
+      "fan 0 target \u2192 3000 rpm (now 3000, range 1000\u20136000)\nTRACE forced-on\nTRACE target-write\n"
+    ],
+    "ok": [
+      0,
+      "fan 0 target \u2192 3000 rpm (now 3000, range 1000\u20136000)\nTRACE forced-on\nTRACE target-write\n"
+    ]
+  },
+  "restored_baseline": {
+    "unconfirmed": [
+      1,
+      "vorssaint: Set fan 0 target to 3000 rpm? \u2014 pass --yes to confirm (non-interactive).\n"
+    ],
+    "write-fails": [
+      3,
+      "TRACE forced-on\nTRACE target-write\nvorssaint: SMC key F0Tg is not writable on this Mac \u2014 manual fan control is often unavailable on Apple Silicon\n"
+    ],
+    "ignored": [
+      3,
+      "TRACE forced-on\nTRACE target-write\nvorssaint: SMC accepted 3000 rpm but reports 3500 rpm \u2014 firmware is managing this fan\n"
+    ],
+    "ok": [
+      0,
+      "fan 0 target \u2192 3000 rpm (now 3000, range 1000\u20136000)\nTRACE forced-on\nTRACE target-write\n"
+    ]
+  }
+}

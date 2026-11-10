@@ -1,0 +1,73 @@
+{
+  "baseline": {
+    "unconfirmed": [
+      1,
+      "TRACE attach\nvorssaint: Install Demo.app \u2192 /scratch/Applications/Demo.app? \u2014 pass --yes to confirm (non-interactive).\n"
+    ],
+    "no-app": [
+      5,
+      "TRACE attach\nvorssaint: no .app inside /scratch/input.dmg\n"
+    ],
+    "copy-fails": [
+      1,
+      "TRACE attach\nTRACE remove /scratch/Applications/Demo.app\nTRACE /var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/vorssaint-dmg-BA586A62/Demo.app\nvorssaint: injected failure\n"
+    ],
+    "cleanup-fails": [
+      0,
+      "installed Demo.app \u2192 /scratch/Applications/Demo.app (dmg removed)\nTRACE attach\nTRACE remove /scratch/Applications/Demo.app\nTRACE /var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/vorssaint-dmg-D49C8BED/Demo.app\nTRACE remove /scratch/input.dmg\nTRACE detach\n"
+    ],
+    "ok": [
+      0,
+      "installed Demo.app \u2192 /scratch/Applications/Demo.app\nTRACE attach\nTRACE remove /scratch/Applications/Demo.app\nTRACE /var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/vorssaint-dmg-31A5C2CD/Demo.app\nTRACE detach\n"
+    ]
+  },
+  "mutation": {
+    "old": "Out.confirm(\"Install \\(appName) \u2192 \\(dest)?\", yes: yes)",
+    "new": "Out.confirm(\"Install \\(appName) \u2192 \\(dest)?\", yes: true)",
+    "caught": true
+  },
+  "mutant": {
+    "unconfirmed": [
+      0,
+      "installed Demo.app \u2192 /scratch/Applications/Demo.app\nTRACE attach\nTRACE remove /scratch/Applications/Demo.app\nTRACE /var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/vorssaint-dmg-D64C61E1/Demo.app\nTRACE detach\n"
+    ],
+    "no-app": [
+      5,
+      "TRACE attach\nvorssaint: no .app inside /scratch/input.dmg\n"
+    ],
+    "copy-fails": [
+      1,
+      "TRACE attach\nTRACE remove /scratch/Applications/Demo.app\nTRACE /var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/vorssaint-dmg-71E5A9F1/Demo.app\nvorssaint: injected failure\n"
+    ],
+    "cleanup-fails": [
+      0,
+      "installed Demo.app \u2192 /scratch/Applications/Demo.app (dmg removed)\nTRACE attach\nTRACE remove /scratch/Applications/Demo.app\nTRACE /var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/vorssaint-dmg-A63A0887/Demo.app\nTRACE remove /scratch/input.dmg\nTRACE detach\n"
+    ],
+    "ok": [
+      0,
+      "installed Demo.app \u2192 /scratch/Applications/Demo.app\nTRACE attach\nTRACE remove /scratch/Applications/Demo.app\nTRACE /var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/vorssaint-dmg-D23BBAA3/Demo.app\nTRACE detach\n"
+    ]
+  },
+  "restored_baseline": {
+    "unconfirmed": [
+      1,
+      "TRACE attach\nvorssaint: Install Demo.app \u2192 /scratch/Applications/Demo.app? \u2014 pass --yes to confirm (non-interactive).\n"
+    ],
+    "no-app": [
+      5,
+      "TRACE attach\nvorssaint: no .app inside /scratch/input.dmg\n"
+    ],
+    "copy-fails": [
+      1,
+      "TRACE attach\nTRACE remove /scratch/Applications/Demo.app\nTRACE /var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/vorssaint-dmg-D6709857/Demo.app\nvorssaint: injected failure\n"
+    ],
+    "cleanup-fails": [
+      0,
+      "installed Demo.app \u2192 /scratch/Applications/Demo.app (dmg removed)\nTRACE attach\nTRACE remove /scratch/Applications/Demo.app\nTRACE /var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/vorssaint-dmg-10355E3A/Demo.app\nTRACE remove /scratch/input.dmg\nTRACE detach\n"
+    ],
+    "ok": [
+      0,
+      "installed Demo.app \u2192 /scratch/Applications/Demo.app\nTRACE attach\nTRACE remove /scratch/Applications/Demo.app\nTRACE /var/folders/7r/p3xtrh696y57p4xgpqp8ghn00000gn/T/vorssaint-dmg-A2D9FB46/Demo.app\nTRACE detach\n"
+    ]
+  }
+}

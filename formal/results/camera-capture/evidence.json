@@ -1,0 +1,37 @@
+{
+  "baseline": {
+    "frame": [
+      0,
+      "TRACE camera-started\nTRACE saved 1\nTRACE camera-stopped\n"
+    ],
+    "timeout": [
+      1,
+      "TRACE camera-started\nvorssaint: no frame\n"
+    ]
+  },
+  "mutation": {
+    "old": "defer { session.stopRunning() }",
+    "new": "defer { }",
+    "caught": true
+  },
+  "mutant": {
+    "frame": [
+      0,
+      "TRACE camera-started\nTRACE saved 1\n"
+    ],
+    "timeout": [
+      1,
+      "TRACE camera-started\nvorssaint: no frame\n"
+    ]
+  },
+  "restored_baseline": {
+    "frame": [
+      0,
+      "TRACE camera-started\nTRACE saved 1\nTRACE camera-stopped\n"
+    ],
+    "timeout": [
+      1,
+      "TRACE camera-started\nvorssaint: no frame\n"
+    ]
+  }
+}

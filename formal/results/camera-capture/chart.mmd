@@ -1,0 +1,33 @@
+---
+title: "Take one camera photo"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: Breaks ExplicitStopOnError
+    lg1: Path to the ExplicitStopOnError bug
+  }
+  class lg0 breaks
+  class lg1 bugPath
+  s0: You select a camera and filename
+  s1: Permission granted#59; camera configured
+  s2: Camera access refused
+  s3: Camera running#59; waiting for a frame
+  s4: Converting and writing the photo
+  s5: Process exits before explicit camera stop
+  s6: Photo saved#59; returning from command
+  s7: Camera explicitly stopped
+  [*] --> s0
+  s0 --> s1: camera access is granted
+  s0 --> s2: camera access is denied
+  s1 --> s3: the camera starts
+  s3 --> s4: the first frame arrives
+  s3 --> s5: no frame arrives before the timeout
+  s4 --> s5: conversion or disk write fails
+  s4 --> s6: the photo is written
+  s6 --> s7: normal return runs cleanup
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  class s0 bugPath
+  class s1 bugPath
+  class s3 bugPath
+  class s5 breaks
+  class s5 bugPath
